@@ -6,7 +6,7 @@
 
 **Recreate Claude Code's core capabilities in ~1300 lines of TypeScript.** This isn't a demo — it's a step-by-step tutorial where each chapter compares Claude Code's real source with our simplified implementation, helping you truly understand how coding agents work.
 
-<https://github.com/Windy3f3f3f3f/claude-code-from-scratch/raw/main/demo.mp4>
+<video src="https://github.com/Windy3f3f3f3f/claude-code-from-scratch/raw/main/demo.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ## Step-by-Step Tutorial
 

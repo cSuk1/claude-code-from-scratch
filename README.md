@@ -6,7 +6,7 @@
 
 **用 ~1300 行 TypeScript 复现 Claude Code 的核心能力。** 这不是 demo，而是一份分步教程——每一步都对照 Claude Code 真实源码讲解"它怎么做的 → 我们怎么简化的"，帮你彻底理解 coding agent 的工作原理。
 
-<https://github.com/Windy3f3f3f3f/claude-code-from-scratch/raw/main/demo.mp4>
+<video src="https://github.com/Windy3f3f3f3f/claude-code-from-scratch/raw/main/demo.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ## 分步教程
 
