@@ -150,6 +150,10 @@ src/
 
 - [how-claude-code-works](https://github.com/Windy3f3f3f3f/how-claude-code-works) — Claude Code 源码架构深度解析
 
+## 致谢
+
+感谢 [LINUX DO](https://linux.do/) 社区的支持与讨论。
+
 ## License
 
 MIT
