@@ -1,167 +1,223 @@
 # Claude Code From Scratch
 
-[![GitHub stars](https://img.shields.io/github/stars/Windy3f3f3f3f/claude-code-from-scratch?style=social)](https://github.com/Windy3f3f3f3f/claude-code-from-scratch)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](#)
-[![Lines of Code](https://img.shields.io/badge/~3000_lines-minimal-green)](#)
+A minimal AI coding agent built from scratch of TypeScript, inspired by [Claude Code](https://claude.ai/code).
 
-> Build Claude Code from scratch, step by step
+> Forked from [Windy3f3f3f3f/claude-code-from-scratch](https://github.com/Windy3f3f3f3f/claude-code-from-scratch), heavily modified.
 
-<p align="center">
-  <a href="https://windy3f3f3f3f.github.io/claude-code-from-scratch/"><strong>📘 Read Tutorial Online →</strong></a>
-  &nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="./README.md">中文</a>
-</p>
+## Features
 
-> 📖 **Want to understand the internals?** Companion project **[How Claude Code Works](https://github.com/Windy3f3f3f3f/how-claude-code-works)** — 12 deep-dive articles, 330K+ characters, source-level analysis of Claude Code's architecture
-
----
-
-**Claude Code open-sourced 500K lines of TypeScript. Too much to read?**
-
-This project recreates Claude Code's core architecture in **~3000 lines** — Agent Loop, tool system, 4-tier context compression, memory, skills, multi-agent — with each step comparing the real source to our simplified version.
-
-This isn't a demo — it's a **step-by-step tutorial**. Follow along, write a few thousand lines of code yourself, and quickly grasp the essence of the best coding agent out there. No need to wade through hundreds of thousands of lines.
-
-<video src="https://github.com/user-attachments/assets/4f6597e2-6ea3-45ae-8a6b-77662c4e9540" width="100%" autoplay loop muted playsinline></video>
-
-## Step-by-Step Tutorial
-
-11 chapters, from core loop to advanced capabilities. Each chapter includes real code + Claude Code source comparison. Follow along and build your own coding agent:
-
-| Chapter | Content | Source Mapping |
-|---------|---------|---------------|
-| [1. Agent Loop](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/01-agent-loop) | Core loop: call LLM → execute tools → repeat | `agent.ts` ↔ `query.ts` |
-| [2. Tool System](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/02-tools) | 8 tools: definition & implementation | `tools.ts` ↔ `Tool.ts` + 66 tools |
-| [3. System Prompt](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/03-system-prompt) | Prompt engineering for a coding agent | `prompt.ts` ↔ `prompts.ts` |
-| [4. Streaming](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/04-streaming) | Anthropic + OpenAI dual-backend streaming | `agent.ts` ↔ `api/claude.ts` |
-| [5. Safety](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/05-safety) | Dangerous command detection + confirmation | `tools.ts` ↔ `permissions.ts` (52KB) |
-| [6. Context](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/06-context) | Result truncation + auto-compaction | `agent.ts` ↔ `compact/` |
-| [7. CLI & Sessions](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/07-cli-session) | REPL, Ctrl+C, session persistence | `cli.ts` ↔ `cli.tsx` |
-| [8. Memory & Skills](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/08-memory-skills) | 4-type memory + skill template system | `memory.ts` + `skills.ts` |
-| [9. Multi-Agent](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/09-multi-agent) | Sub-Agent fork-return architecture | `subagent.ts` ↔ `AgentTool/` |
-| [10. Permission Rules](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/10-permission-rules) | Configurable allow/deny permission rules | `tools.ts` ↔ `permissions/` |
-| [11. Comparison](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/11-whats-next) | Full comparison + extension ideas | Global |
+- **Dual backend support**: Anthropic Claude (native) + any OpenAI-compatible API
+- **7 built-in tools**: read\_file, write\_file, edit\_file, list\_files, grep\_search, run\_shell, skill
+- **Sub-agent system**: Three built-in types — explore (read-only), plan (analysis), general (full tools) — plus custom agents
+- **4-tier context compression**: budget → snip → microcompact → auto-compact, mirroring Claude Code's compression pipeline
+- **5 permission modes**: default / plan / acceptEdits / bypassPermissions / dontAsk
+- **Session persistence**: Auto-saves conversations, `--resume` to restore the last session
+- **Memory system**: Per-project storage with 4 memory types — user / feedback / project / reference
+- **Skill extensions**: Define reusable skill templates via `.claude/skills/`
+- **Extended thinking**: Supports Claude 4.6 adaptive thinking
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/Windy3f3f3f3f/claude-code-from-scratch.git
-cd claude-code-from-scratch
-npm install && npm run build
+# Install dependencies
+npm install
+
+# Build
+npm run build
+
+# Set API key (choose one)
+export ANTHROPIC_API_KEY=sk-ant-...
+# Or use an OpenAI-compatible endpoint
+export OPENAI_API_KEY=sk-...
+export OPENAI_BASE_URL=https://your-api.com/v1
+
+# Interactive mode
+npm start
+
+# One-shot mode
+node dist/cli.js "fix the bug in src/app.ts"
+
+# Dev mode (build + run immediately)
+npm run dev
 ```
 
-### API Configuration
+## CLI Options
 
-Two backends supported, auto-detected via environment variables:
+```
+Usage: mini-claude [options] [prompt]
 
-**Option 1: Anthropic Format (Recommended)**
-
-```bash
-export ANTHROPIC_API_KEY="sk-ant-xxx"
-# Optional: use a proxy
-export ANTHROPIC_BASE_URL="https://aihubmix.com"
+Options:
+  --yolo, -y          Skip all confirmation prompts
+  --plan              Read-only mode, analyze without executing
+  --accept-edits      Auto-approve file edits, still confirm dangerous commands
+  --dont-ask          Auto-deny all confirmations (for CI)
+  --thinking          Enable extended thinking (Anthropic only)
+  --model, -m MODEL   Specify model (default: claude-opus-4-6)
+  --api-base URL      Use an OpenAI-compatible endpoint
+  --resume            Resume the last session
+  --max-cost USD      Cost ceiling in USD
+  --max-turns N       Maximum number of agentic turns
+  --help, -h          Show help
 ```
 
-**Option 2: OpenAI-Compatible Format**
+## REPL Commands
 
-```bash
-export OPENAI_API_KEY="sk-xxx"
-export OPENAI_BASE_URL="https://api.openai.com/v1"
-```
+Available in interactive mode:
 
-Default model is `claude-opus-4-6`. Customize via env var or CLI flag:
-
-```bash
-export MINI_CLAUDE_MODEL="claude-sonnet-4-6"    # env var
-npm start -- --model gpt-4o                      # CLI flag (higher priority)
-```
-
-### Run
-
-```bash
-npm start                    # Interactive REPL mode (recommended)
-npm start -- --resume        # Resume last session
-npm start -- --yolo          # Skip safety confirmations
-npm start -- --plan          # Plan mode: analyze only, no modifications
-npm start -- --accept-edits  # Auto-approve file edits
-npm start -- --dont-ask      # CI mode: auto-deny confirmable actions
-npm start -- --max-cost 0.50 # Cost limit (USD)
-npm start -- --max-turns 20  # Turn limit
-```
-
-Install globally to use from any directory:
-
-```bash
-npm link                     # Global install
-cd ~/your-project
-mini-claude                  # Launch directly
-```
-
-### REPL Commands
-
-| Command | Function |
-|---------|----------|
-| `/clear` | Clear conversation history |
-| `/cost` | Show cumulative token usage and cost |
-| `/compact` | Manually trigger conversation compaction |
-| `/memory` | List saved memories |
-| `/skills` | List available skills |
-| `/<skill>` | Invoke a registered skill (e.g. `/commit`) |
-
-## Comparison with Claude Code
-
-| Aspect | Claude Code | Mini Claude Code |
-|--------|------------|-----------------|
-| Purpose | Production coding agent | Educational / minimal |
-| Tools | 66+ built-in | 8 tools (6 core + skill + agent) |
-| Context | 4-level compression pipeline | 4-tier compression (budget + snip + microcompact + auto-compact) |
-| Permissions | 7-layer + AST analysis | 5 modes + rule config + regex detection |
-| Edit Validation | 14-step pipeline | Quote normalization + uniqueness + diff output |
-| Memory | 4 types + semantic recall | 4 types + keyword recall |
-| Skills | 6 sources + inline/fork | 2 sources + inline/fork |
-| Multi-Agent | Sub-Agent + Custom + Coordinator + Swarm | Sub-Agent (3 built-in + custom agents) |
-| Budget Control | USD/turns/abort | USD + turn limits |
-| Code Size | 500k+ lines | ~3000 lines |
-
-## Core Capabilities
-
-- **Agent Loop**: Automatically calls tools, processes results, iterates until done
-- **8 Tools**: Read, write, edit (quote normalization + diff output); search files/content; execute commands; skills; sub-agents
-- **Streaming**: Real-time character-by-character output, Anthropic + OpenAI backends
-- **4-Tier Context Compression**: Budget trimming → stale snip → microcompact → auto-compact, zero API cost progressive space reclaim
-- **5 Permission Modes**: default / plan / acceptEdits / bypassPermissions / dontAsk
-- **Memory System**: 4 types (user/feedback/project/reference) with cross-session persistence
-- **Skills System**: Load reusable prompt templates, supports inline injection and fork sub-agent execution
-- **Multi-Agent**: Sub-Agent fork-return pattern (3 built-in + `.claude/agents/` custom types)
-- **Permission Rules**: Configurable allow/deny rules in `.claude/settings.json`, 16 dangerous command patterns (incl. Windows)
-- **Extended Thinking**: Anthropic extended thinking support (`--thinking`), adaptive/enabled/disabled modes
-- **Budget Control**: `--max-cost` USD limit + `--max-turns` turn limit, auto-stop on exceed
-- **Session Persistence**: Auto-save conversations, `--resume` to restore
-- **Cross-Platform**: Windows / macOS / Linux, auto-detects shell (PowerShell / bash / zsh)
-- **Error Recovery**: Exponential backoff + random jitter retry (max 3 attempts), graceful Ctrl+C
+| Command                | Description                                 |
+| ---------------------- | ------------------------------------------- |
+| `/clear`               | Clear conversation history                  |
+| `/cost`                | Show token usage and cost                   |
+| `/compact`             | Manually compact the conversation           |
+| `/memory`              | List saved memories                         |
+| `/skills`              | List available skills                       |
+| `/<skill-name> [args]` | Invoke a skill (e.g. `/commit "fix types"`) |
 
 ## Project Structure
 
 ```
 src/
-├── agent.ts        # Agent loop: streaming, 4-tier compress, budget     (1064 lines)
-├── tools.ts        # Tools: 8 tools + 5 perm modes + quote fix + diff  (667 lines)
-├── cli.ts          # CLI entry: args, REPL, budget flags                (336 lines)
-├── memory.ts       # Memory system: 4 types + file storage + recall     (205 lines)
-├── ui.ts           # Terminal output: colors, formatting, sub-agent     (187 lines)
-├── skills.ts       # Skills system: discovery + inline/fork modes       (175 lines)
-├── subagent.ts     # Sub-agent: 3 built-in + custom agent discovery     (172 lines)
-├── system-prompt.md # System prompt template                            (81 lines)
-├── prompt.ts       # System prompt: template + memory/skill/agent       (76 lines)
-├── session.ts      # Session persistence: save/load/list                (63 lines)
-├── frontmatter.ts  # Shared YAML frontmatter parser                     (41 lines)
-                                                          Total: ~3067 lines
+├── cli.ts                 # Main entry point
+├── cli/
+│   ├── args.ts            # Argument parsing
+│   ├── config.ts          # API config resolution
+│   └── repl.ts            # Interactive REPL loop
+├── core/
+│   ├── agent.ts           # Core Agent class (chat loop, tool execution, compression)
+│   └── prompt.ts          # System prompt builder (template rendering + dynamic injection)
+├── tools/
+│   └── tools.ts           # Tool definitions and execution
+├── ui/
+│   └── ui.ts              # Terminal UI (colors, spinner, formatting)
+├── storage/
+│   ├── session.ts         # Session persistence
+│   └── memory.ts          # Memory system
+├── extensions/
+│   ├── skills.ts          # Skill discovery and execution
+│   └── subagent.ts        # Sub-agent system
+├── utils/
+│   └── frontmatter.ts     # YAML frontmatter parser
+└── templates/
+    └── system-prompt.md   # System prompt template
 ```
 
-## Related Projects
+## Architecture Overview
 
-- **[how-claude-code-works](https://github.com/Windy3f3f3f3f/how-claude-code-works)** — Deep dive into Claude Code's architecture (12 articles, 330K+ characters)
+### Execution Flow
+
+```
+cli.ts → parseArgs() → resolveApiConfig() → new Agent() → chat() or runRepl()
+```
+
+### Agent Core Loop
+
+```
+User input → Compression pipeline → API call → Parse response
+                                                  ├── Text → Print to terminal
+                                                  └── Tool call → Permission check → Execute → Add result to history → Continue loop
+```
+
+### Context Compression Pipeline
+
+A 4-tier progressive compression pipeline runs before each API call (first 3 tiers are zero API cost):
+
+| Tier | Name         | Trigger                       | Strategy                                              |
+| ---- | ------------ | ----------------------------- | ----------------------------------------------------- |
+| 1    | Budget       | Context utilization > 50%     | Truncate large tool results, keeping head and tail    |
+| 2    | Snip         | Utilization exceeds threshold | Replace stale/duplicate tool results with placeholder |
+| 3    | Microcompact | Idle for > 5 minutes          | Aggressively clear old results (prompt cache is cold) |
+| 4    | Auto-compact | Utilization > 85%             | Summarize the entire conversation via API call        |
+
+### Dual Backend Support
+
+The Agent maintains two separate message histories (`anthropicMessages` / `openaiMessages`), routing via the `useOpenAI` flag. Tool definitions use Anthropic's format as the canonical form and are converted to OpenAI format on-the-fly via `toOpenAITools()`.
+
+## Extensions
+
+### Custom Skills
+
+Create `.claude/skills/<name>/SKILL.md` in your project root:
+
+```yaml
+---
+name: my-skill
+description: What this skill does
+user-invocable: true
+context: inline
+---
+Your skill prompt template goes here.
+Use $ARGUMENTS or ${ARGUMENTS} for user-provided arguments.
+```
+
+Then invoke via `/my-skill args` in the REPL.
+
+### Custom Agents
+
+Define in `.claude/agents/<name>.md`:
+
+```yaml
+---
+name: my-agent
+description: What this agent does
+allowed-tools: read_file, grep_search, list_files
+---
+Your agent's system prompt goes here.
+```
+
+### Permission Configuration
+
+Configure in `.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": ["read_file(src/**)", "run_shell(npm test)"],
+    "deny": ["run_shell(rm -rf *)"]
+  }
+}
+```
+
+## Environment Variables
+
+| Variable             | Description                          |
+| -------------------- | ------------------------------------ |
+| `ANTHROPIC_API_KEY`  | Anthropic API key                    |
+| `ANTHROPIC_BASE_URL` | Custom Anthropic endpoint (optional) |
+| `OPENAI_API_KEY`     | OpenAI-compatible API key            |
+| `OPENAI_BASE_URL`    | OpenAI-compatible endpoint           |
+| `MINI_CLAUDE_MODEL`  | Override default model               |
+
+## Usage Examples
+
+```bash
+# Basic usage
+mini-claude "explain the architecture of this project"
+
+# Skip confirmations, fully automatic
+mini-claude --yolo "run all tests and fix failures"
+
+# Read-only analysis mode
+mini-claude --plan "how would you refactor this module?"
+
+# Auto-approve edits
+mini-claude --accept-edits "add error handling to api.ts"
+
+# Set cost and turn limits
+mini-claude --max-cost 0.50 --max-turns 20 "implement feature X"
+
+# Use an OpenAI-compatible endpoint
+OPENAI_API_KEY=sk-xxx mini-claude --api-base https://aihubmix.com/v1 --model gpt-4o "hello"
+
+# Resume the last conversation
+mini-claude --resume
+```
+
+## Dependencies
+
+- `@anthropic-ai/sdk` — Anthropic API client
+- `openai` — OpenAI API client
+- `chalk` — Terminal colors
+- `glob` — File pattern matching
 
 ## License
 

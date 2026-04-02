@@ -1,232 +1,224 @@
-<div align="center">
-
 # Claude Code From Scratch
 
-**一步一步，从零造一个 Claude Code**
+一个从零实现的极简 AI 编程代理，灵感来自 [Claude Code](https://claude.ai/code)。
 
-[![GitHub stars](https://img.shields.io/github/stars/Windy3f3f3f3f/claude-code-from-scratch?style=flat-square&logo=github)](https://github.com/Windy3f3f3f3f/claude-code-from-scratch)
-[![GitHub forks](https://img.shields.io/github/forks/Windy3f3f3f3f/claude-code-from-scratch?style=flat-square&logo=github)](https://github.com/Windy3f3f3f3f/claude-code-from-scratch/fork)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](#)
-[![Lines of Code](https://img.shields.io/badge/~3000_lines-minimal-green?style=flat-square)](#)
+> Forked from [Windy3f3f3f3f/claude-code-from-scratch](https://github.com/Windy3f3f3f3f/claude-code-from-scratch)，在原项目基础上进行了修改。
 
-<br/>
+## 特性
 
-[**📘 在线阅读教程 →**](https://windy3f3f3f3f.github.io/claude-code-from-scratch/)
-&nbsp;&nbsp;|&nbsp;&nbsp;
-[English](./README_EN.md)
-
-<br/>
-
-> 📖 **想深入了解原理？** 姊妹项目 **[How Claude Code Works](https://github.com/Windy3f3f3f3f/how-claude-code-works)** — 12 篇专题，33 万字，从源码级别深度解析 Claude Code 架构
-
-</div>
-
----
-
-**Claude Code 开源了 50 万行 TypeScript。读不动？**
-
-本项目用 **~3000 行代码**复现了 Claude Code 的核心架构——Agent Loop、工具系统、4 层上下文压缩、记忆系统、技能系统、多 Agent……每一步都对照真实源码讲解"它怎么做的 → 我们怎么简化的"。
-
-这不是 demo，是一份**分步教程**——11 章内容，跟着动手写几千行代码，快速理解 Claude Code 这样最好用的 coding agent 的精髓。读完你就理解了 coding agent 的工作原理，无需啃那几十万行代码。
-
-<div align="center">
-  <video src="https://github.com/user-attachments/assets/4f6597e2-6ea3-45ae-8a6b-77662c4e9540" width="100%" autoplay loop muted playsinline></video>
-</div>
-
-## 📖 分步教程
-
-11 章内容，从核心循环到进阶能力，每章都贴真实代码 + Claude Code 源码对照。跟着教程动手写，快速掌握 coding agent 核心原理：
-
-| 章节 | 内容 | 对应源码 |
-|------|------|---------|
-| [1. Agent Loop](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/01-agent-loop) | 核心循环：调用 LLM → 执行工具 → 重复 | `agent.ts` ↔ `query.ts` |
-| [2. 工具系统](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/02-tools) | 8 个工具的定义与实现 | `tools.ts` ↔ `Tool.ts` + 66 工具 |
-| [3. System Prompt](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/03-system-prompt) | 让 LLM 成为合格 agent 的提示词工程 | `prompt.ts` ↔ `prompts.ts` |
-| [4. 流式输出](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/04-streaming) | Anthropic + OpenAI 双后端流式处理 | `agent.ts` ↔ `api/claude.ts` |
-| [5. 权限与安全](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/05-safety) | 危险命令检测 + 用户确认机制 | `tools.ts` ↔ `permissions.ts` (52KB) |
-| [6. 上下文管理](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/06-context) | 结果截断 + 自动对话压缩 | `agent.ts` ↔ `compact/` |
-| [7. CLI 与会话](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/07-cli-session) | REPL、Ctrl+C、会话持久化 | `cli.ts` ↔ `cli.tsx` |
-| [8. 记忆与技能](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/08-memory-skills) | 4 类型记忆 + 技能模板系统 | `memory.ts` + `skills.ts` |
-| [9. 多 Agent](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/09-multi-agent) | Sub-Agent fork-return 多 Agent 架构 | `subagent.ts` ↔ `AgentTool/` |
-| [10. 权限规则](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/10-permission-rules) | 配置化 allow/deny 权限规则 | `tools.ts` ↔ `permissions/` |
-| [11. 架构对比](https://windy3f3f3f3f.github.io/claude-code-from-scratch/#/docs/11-whats-next) | 完整对比 + 扩展方向 | 全局 |
-
-## 🚀 快速开始
-
-```bash
-git clone https://github.com/Windy3f3f3f3f/claude-code-from-scratch.git
-cd claude-code-from-scratch
-npm install && npm run build
-```
-
-### 配置 API
-
-支持两种后端，通过环境变量自动识别：（支持自定义base url）
-
-**方式一：Anthropic 格式（推荐）**
-
-```bash
-export ANTHROPIC_API_KEY="sk-ant-xxx"
-# 可选：使用代理
-export ANTHROPIC_BASE_URL="https://aihubmix.com"
-```
-
-**方式二：OpenAI 兼容格式**
-
-```bash
-export OPENAI_API_KEY="sk-xxx"
-export OPENAI_BASE_URL="https://api.openai.com/v1"
-```
-
-默认模型为 `claude-opus-4-6`，可通过环境变量或命令行参数自定义：
-
-```bash
-export MINI_CLAUDE_MODEL="claude-sonnet-4-6"    # 环境变量方式
-npm start -- --model gpt-4o                      # 命令行方式（优先级更高）
-```
-
-### 运行
-
-```bash
-npm start                    # 交互式 REPL 模式（推荐）
-npm start -- --resume        # 恢复上次会话继续对话
-npm start -- --yolo          # 跳过安全确认（危险命令自动执行）
-npm start -- --plan          # Plan 模式：只分析不修改
-npm start -- --accept-edits  # 自动批准文件编辑
-npm start -- --dont-ask      # CI 模式：需确认的操作自动拒绝
-npm start -- --max-cost 0.50 # 费用限制（美元）
-npm start -- --max-turns 20  # 轮次限制
-```
-
-全局安装后可在任意目录使用：
-
-```bash
-npm link                     # 全局安装
-cd ~/your-project
-mini-claude                  # 直接启动
-```
-
-### REPL 命令
-
-| 命令 | 功能 |
-|------|------|
-| `/clear` | 清空对话历史 |
-| `/cost` | 显示累计 token 用量和费用估算 |
-| `/compact` | 手动触发对话压缩 |
-| `/memory` | 列出所有已保存的记忆 |
-| `/skills` | 列出可用的技能 |
-| `/<skill>` | 调用已注册的技能（如 `/commit`） |
-
-## ⚖️ 与 Claude Code 的对比
-
-| 维度 | Claude Code | Mini Claude Code |
-|------|------------|-----------------|
-| 定位 | 生产级编程智能体 | 教学 / 最小可用实现 |
-| 工具数量 | 66+ 内置工具 | 8 个工具（6 核心 + skill + agent） |
-| 上下文管理 | 4 级压缩流水线 | 4 层压缩（budget + snip + microcompact + auto-compact） |
-| 权限系统 | 7 层 + AST 分析 | 5 种模式 + 规则配置 + 正则检测 |
-| 编辑验证 | 14 步流水线 | 引号容错 + 唯一性 + diff 输出 |
-| 记忆系统 | 4 类型 + 语义召回 | 4 类型 + 关键词召回 |
-| 技能系统 | 6 源 + inline/fork | 2 源 + inline/fork |
-| 多 Agent | Sub-Agent + 自定义 + Coordinator + Swarm | Sub-Agent（3 内置 + 自定义 Agent） |
-| 预算控制 | USD/轮次/abort 三维 | USD + 轮次限制 |
-| 代码量 | 50 万+ 行 | ~3000 行 |
-
-## ⚡ 核心能力
-
-- **Agent 循环**：自动调用工具、处理结果、持续迭代，直到任务完成
-- **8 个工具**：读文件、写文件、编辑代码（引号容错 + diff 输出）、搜索文件、搜索内容、执行命令、技能调用、子 Agent
-- **流式输出**：逐字实时显示，Anthropic + OpenAI 双后端
-- **4 层上下文压缩**：budget 截断 → stale snip → microcompact → auto-compact，零 API 成本逐级释放空间
+- **双后端支持**：Anthropic Claude（原生）+ 任意 OpenAI 兼容 API
+- **7 个内置工具**：read\_file、write\_file、edit\_file、list\_files、grep\_search、run\_shell、skill
+- **子代理系统**：explore（只读探索）、plan（规划）、general（全功能）三种内置类型，支持自定义代理
+- **4 层上下文压缩**：budget → snip → microcompact → auto-compact，镜像 Claude Code 的压缩管线
 - **5 种权限模式**：default / plan / acceptEdits / bypassPermissions / dontAsk
-- **记忆系统**：4 类型（user/feedback/project/reference）跨会话记忆
-- **技能系统**：`.claude/skills/` 目录加载，支持 inline 注入和 fork 子 Agent 两种执行模式
-- **多 Agent**：Sub-Agent fork-return 模式（3 内置类型 + `.claude/agents/` 自定义类型）
-- **权限规则**：`.claude/settings.json` 配置化 allow/deny 规则，16 个危险命令正则（含 Windows）
-- **Extended Thinking**：支持 Anthropic 扩展思考（`--thinking`），adaptive/enabled/disabled 三模式
-- **预算控制**：`--max-cost` 费用限制 + `--max-turns` 轮次限制，超限自动停止
 - **会话持久化**：自动保存对话，`--resume` 恢复上次会话
-- **跨平台**：Windows / macOS / Linux，自动检测 shell（PowerShell / bash / zsh）
-- **错误恢复**：API 限流/过载时指数退避 + 随机抖动重试（最多 3 次），Ctrl+C 优雅中断
+- **记忆系统**：按项目存储 user / feedback / project / reference 四类记忆
+- **技能扩展**：通过 `.claude/skills/` 目录定义可复用的技能模板
+- **扩展思考**：支持 Claude 4.6 的 adaptive thinking
 
-## 📁 项目结构
+## 快速开始
+
+```bash
+# 安装依赖
+npm install
+
+# 构建
+npm run build
+
+# 设置 API Key（二选一）
+export ANTHROPIC_API_KEY=sk-ant-...
+# 或使用 OpenAI 兼容接口
+export OPENAI_API_KEY=sk-...
+export OPENAI_BASE_URL=https://your-api.com/v1
+
+# 交互模式
+npm start
+
+# 单次执行
+node dist/cli.js "修复 src/app.ts 中的 bug"
+
+# 开发模式（构建 + 立即运行）
+npm run dev
+```
+
+## CLI 参数
+
+```
+用法: mini-claude [选项] [提示词]
+
+选项:
+  --yolo, -y          跳过所有确认提示
+  --plan              只读模式，只分析不执行
+  --accept-edits      自动批准文件编辑，危险命令仍需确认
+  --dont-ask          自动拒绝所有需要确认的操作（适用于 CI）
+  --thinking          启用扩展思考（仅 Anthropic）
+  --model, -m MODEL   指定模型（默认: claude-opus-4-6）
+  --api-base URL      使用 OpenAI 兼容端点
+  --resume            恢复上次会话
+  --max-cost USD      费用上限（美元）
+  --max-turns N       最大轮次限制
+  --help, -h          显示帮助
+```
+
+## REPL 命令
+
+在交互模式下可使用：
+
+| 命令            | 说明                            |
+| ------------- | ----------------------------- |
+| `/clear`      | 清空对话历史                        |
+| `/cost`       | 显示 token 用量和费用                |
+| `/compact`    | 手动压缩对话                        |
+| `/memory`     | 列出已保存的记忆                      |
+| `/skills`     | 列出可用技能                        |
+| `/<技能名> [参数]` | 调用技能（如 `/commit "fix types"`） |
+
+## 项目结构
 
 ```
 src/
-├── agent.ts        # Agent 循环：流式、4 层压缩、预算、子 Agent  (1064 行)
-├── tools.ts        # 工具：8 工具 + 5 权限模式 + 引号容错 + diff (667 行)
-├── cli.ts          # CLI 入口：参数解析、REPL、预算 flags        (336 行)
-├── memory.ts       # 记忆系统：4 类型 + 文件存储 + 关键词召回    (205 行)
-├── ui.ts           # 终端输出：彩色显示、格式化、子 Agent 显示   (187 行)
-├── skills.ts       # 技能系统：目录发现 + inline/fork 双模式     (175 行)
-├── subagent.ts     # 子 Agent：3 内置 + 自定义 Agent 发现        (172 行)
-├── system-prompt.md # 系统提示词模板                             (81 行)
-├── prompt.ts       # System Prompt：模板 + 记忆/技能/Agent 注入  (76 行)
-├── session.ts      # 会话持久化：保存/恢复/列表                  (63 行)
-├── frontmatter.ts  # 共享 YAML frontmatter 解析器               (41 行)
-                                                    总计: ~3067 行
+├── cli.ts                 # 主入口
+├── cli/
+│   ├── args.ts            # 参数解析
+│   ├── config.ts          # API 配置解析
+│   └── repl.ts            # REPL 交互循环
+├── core/
+│   ├── agent.ts           # Agent 核心类（对话循环、工具执行、压缩管线）
+│   └── prompt.ts          # 系统提示词构建（模板渲染 + 动态注入）
+├── tools/
+│   └── tools.ts           # 工具定义与执行
+├── ui/
+│   └── ui.ts              # 终端 UI（颜色、spinner、格式化）
+├── storage/
+│   ├── session.ts         # 会话持久化
+│   └── memory.ts          # 记忆系统
+├── extensions/
+│   ├── skills.ts          # 技能发现与执行
+│   └── subagent.ts        # 子代理系统
+├── utils/
+│   └── frontmatter.ts     # YAML frontmatter 解析
+└── templates/
+    └── system-prompt.md   # 系统提示词模板
 ```
 
-## 🏗️ 架构图
+## 架构概览
+
+### 执行流程
 
 ```
-用户输入
-  │
-  ▼
-┌─────────────────────────────────────┐
-│          Agent Loop                 │
-│                                     │
-│  消息历史 → API (流式) → 实时输出   │
-│       ▲                   │         │
-│       │              ┌────┴───┐     │
-│       │              │文本输出│     │
-│       │              │工具调用│     │
-│       │              └────┬───┘     │
-│       │                   │         │
-│       │   ┌───────┐ ┌────▼───┐     │
-│       │   │截断保护│←│工具执行│     │
-│       │   └───────┘ └────┬───┘     │
-│       │                   │         │
-│       │   ┌───────────────▼───┐     │
-│       └───│Token 追踪 + 压缩 │     │
-│           └───────────────────┘     │
-└─────────────────────────────────────┘
-  │
-  ▼
-任务完成 → 自动保存会话
+cli.ts → parseArgs() → resolveApiConfig() → new Agent() → chat() 或 runRepl()
 ```
 
-## 🔗 相关项目
+### Agent 核心循环
 
-- **[how-claude-code-works](https://github.com/Windy3f3f3f3f/how-claude-code-works)** — Claude Code 源码架构深度解析（12 篇专题，33 万字）
+```
+用户输入 → 压缩管线 → API 调用 → 解析响应
+                                      ├── 文本 → 输出到终端
+                                      └── 工具调用 → 权限检查 → 执行 → 结果入历史 → 继续循环
+```
 
-## 🙏 致谢
+### 上下文压缩管线
 
-感谢 [LINUX DO](https://linux.do/) 社区的支持与讨论。
+每次 API 调用前执行 4 层渐进式压缩（前 3 层零 API 消耗）：
 
-## 💬 更多交流
+| 层级 | 名称           | 触发条件         | 策略                       |
+| -- | ------------ | ------------ | ------------------------ |
+| 1  | Budget       | 上下文利用率 > 50% | 截断大的工具结果，保留头尾            |
+| 2  | Snip         | 利用率超过阈值      | 用占位符替换旧的/重复的工具结果         |
+| 3  | Microcompact | 空闲超过 5 分钟    | 激进清除旧结果（prompt cache 已冷） |
+| 4  | Auto-compact | 利用率 > 85%    | 调用 API 对整段对话进行摘要压缩       |
 
-<div align="center">
+### 双后端支持
 
-**加入 AI Agent 工坊 交流群**
+Agent 维护两套独立的消息历史（`anthropicMessages` / `openaiMessages`），通过 `useOpenAI` 标志路由。工具定义以 Anthropic 格式为规范形式，通过 `toOpenAITools()` 按需转换为 OpenAI 格式。
 
-<img src="./assets/qq.jpg" width="280" alt="QQ 群二维码" />
+## 扩展
 
-QQ 群号：**1090526244**
+### 自定义技能
 
-</div>
+在项目根目录创建 `.claude/skills/<名称>/SKILL.md`：
 
-## 📈 Star History
+```yaml
+---
+name: my-skill
+description: 技能描述
+user-invocable: true
+context: inline
+---
+这里是技能的提示词模板。
+使用 $ARGUMENTS 引用用户传入的参数。
+```
 
-<div align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Windy3f3f3f3f/claude-code-from-scratch&type=Date&theme=dark" />
-  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Windy3f3f3f3f/claude-code-from-scratch&type=Date" />
-  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Windy3f3f3f3f/claude-code-from-scratch&type=Date" width="600" />
-</picture>
-</div>
+然后在 REPL 中通过 `/my-skill 参数` 调用。
 
-## 📄 License
+### 自定义代理
+
+在 `.claude/agents/<名称>.md` 中定义：
+
+```yaml
+---
+name: my-agent
+description: 代理描述
+allowed-tools: read_file, grep_search, list_files
+---
+这里是代理的系统提示词。
+```
+
+### 权限配置
+
+在 `.claude/settings.json` 中配置：
+
+```json
+{
+  "permissions": {
+    "allow": ["read_file(src/**)", "run_shell(npm test)"],
+    "deny": ["run_shell(rm -rf *)"]
+  }
+}
+```
+
+## 环境变量
+
+| 变量                   | 说明                  |
+| -------------------- | ------------------- |
+| `ANTHROPIC_API_KEY`  | Anthropic API 密钥    |
+| `ANTHROPIC_BASE_URL` | Anthropic 自定义端点（可选） |
+| `OPENAI_API_KEY`     | OpenAI 兼容 API 密钥    |
+| `OPENAI_BASE_URL`    | OpenAI 兼容端点         |
+| `MINI_CLAUDE_MODEL`  | 默认模型覆盖              |
+
+## 使用示例
+
+```bash
+# 基本使用
+mini-claude "解释这个项目的架构"
+
+# 跳过确认，全自动执行
+mini-claude --yolo "运行所有测试并修复失败的用例"
+
+# 只读分析模式
+mini-claude --plan "如何重构这个模块？"
+
+# 自动批准编辑
+mini-claude --accept-edits "给 api.ts 添加错误处理"
+
+# 设置费用和轮次上限
+mini-claude --max-cost 0.50 --max-turns 20 "实现功能 X"
+
+# 使用 OpenAI 兼容接口
+OPENAI_API_KEY=sk-xxx mini-claude --api-base https://aihubmix.com/v1 --model gpt-4o "你好"
+
+# 恢复上次对话
+mini-claude --resume
+```
+
+## 依赖
+
+- `@anthropic-ai/sdk` — Anthropic API 客户端
+- `openai` — OpenAI API 客户端
+- `chalk` — 终端颜色
+- `glob` — 文件模式匹配
+
+## 许可证
 
 MIT
