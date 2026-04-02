@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 
 import { join } from "path";
 import { homedir } from "os";
 
-const SESSION_DIR = join(homedir(), ".mini-claude", "sessions");
+const SESSION_DIR = join(homedir(), ".claude-code-mini", "sessions");
 
 interface SessionMetadata {
   id: string;

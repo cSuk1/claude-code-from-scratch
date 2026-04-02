@@ -1,5 +1,7 @@
 # Claude Code From Scratch
 
+English | [简体中文](README.md)
+
 A minimal AI coding agent built from scratch of TypeScript, inspired by [Claude Code](https://claude.ai/code).
 
 > Forked from [Windy3f3f3f3f/claude-code-from-scratch](https://github.com/Windy3f3f3f3f/claude-code-from-scratch), heavily modified.
@@ -77,28 +79,36 @@ Available in interactive mode:
 
 ```
 src/
-├── cli.ts                 # Main entry point
+├── cli.ts                    # Main entry point
 ├── cli/
-│   ├── args.ts            # Argument parsing
-│   ├── config.ts          # API config resolution
-│   └── repl.ts            # Interactive REPL loop
+│   ├── args.ts               # Argument parsing
+│   ├── config.ts             # API config resolution
+│   └── repl.ts               # Interactive REPL loop
 ├── core/
-│   ├── agent.ts           # Core Agent class (chat loop, tool execution, compression)
-│   └── prompt.ts          # System prompt builder (template rendering + dynamic injection)
+│   ├── agent.ts              # Core Agent class (chat loop, tool execution)
+│   ├── agent-compression.ts  # Context compression pipeline
+│   ├── agent-model.ts        # Model configuration and selection
+│   ├── agent-openai-tools.ts # OpenAI tool format conversion
+│   ├── agent-retry.ts        # API retry logic
+│   └── prompt.ts             # System prompt builder
 ├── tools/
-│   └── tools.ts           # Tool definitions and execution
+│   ├── tools.ts              # Tools module entry
+│   ├── definitions.ts        # Tool definitions (Anthropic format)
+│   ├── dispatcher.ts         # Tool dispatch and execution
+│   ├── executors.ts          # Concrete tool implementations
+│   └── permissions.ts        # Permission checks and dangerous command detection
 ├── ui/
-│   └── ui.ts              # Terminal UI (colors, spinner, formatting)
+│   └── ui.ts                 # Terminal UI (colors, spinner, Markdown rendering)
 ├── storage/
-│   ├── session.ts         # Session persistence
-│   └── memory.ts          # Memory system
+│   ├── session.ts            # Session persistence
+│   └── memory.ts             # Memory system
 ├── extensions/
-│   ├── skills.ts          # Skill discovery and execution
-│   └── subagent.ts        # Sub-agent system
+│   ├── skills.ts             # Skill discovery and execution
+│   └── subagent.ts           # Sub-agent system
 ├── utils/
-│   └── frontmatter.ts     # YAML frontmatter parser
+│   └── frontmatter.ts        # YAML frontmatter parser
 └── templates/
-    └── system-prompt.md   # System prompt template
+    └── system-prompt.md      # System prompt template
 ```
 
 ## Architecture Overview

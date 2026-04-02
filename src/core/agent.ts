@@ -62,7 +62,7 @@ export class Agent {
   private permissionMode: PermissionMode;
   private thinking: boolean;
   private thinkingMode: "adaptive" | "enabled" | "disabled";
-  private model: string;
+  readonly model: string;
   private systemPrompt: string;
   private tools: ToolDef[];
   private totalInputTokens = 0;

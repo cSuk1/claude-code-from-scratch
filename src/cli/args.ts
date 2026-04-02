@@ -13,7 +13,7 @@ export interface ParsedArgs {
 
 function printHelp(): void {
   console.log(`
-Usage: mini-claude [options] [prompt]
+Usage: claude-code-mini [options] [prompt]
 
 Options:
   --yolo, -y          Skip all confirmation prompts (bypassPermissions mode)
@@ -37,14 +37,14 @@ REPL commands:
   /<skill-name>       Invoke a skill (e.g. /commit "fix types")
 
 Examples:
-  mini-claude "fix the bug in src/app.ts"
-  mini-claude --yolo "run all tests and fix failures"
-  mini-claude --plan "how would you refactor this?"
-  mini-claude --accept-edits "add error handling to api.ts"
-  mini-claude --max-cost 0.50 --max-turns 20 "implement feature X"
-  OPENAI_API_KEY=sk-xxx mini-claude --api-base https://aihubmix.com/v1 --model gpt-4o "hello"
-  mini-claude --resume
-  mini-claude  # starts interactive REPL
+  claude-code-mini "fix the bug in src/app.ts"
+  claude-code-mini --yolo "run all tests and fix failures"
+  claude-code-mini --plan "how would you refactor this?"
+  claude-code-mini --accept-edits "add error handling to api.ts"
+  claude-code-mini --max-cost 0.50 --max-turns 20 "implement feature X"
+  OPENAI_API_KEY=sk-xxx claude-code-mini --api-base https://aihubmix.com/v1 --model gpt-4o "hello"
+  claude-code-mini --resume
+  claude-code-mini  # starts interactive REPL
 `);
 }
 

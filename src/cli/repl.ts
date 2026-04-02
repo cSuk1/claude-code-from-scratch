@@ -40,7 +40,7 @@ export async function runRepl(agent: Agent) {
     }
   });
 
-  printWelcome();
+  printWelcome(agent.model);
 
   const askQuestion = (): void => {
     printUserPrompt();

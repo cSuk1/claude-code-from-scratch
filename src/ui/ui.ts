@@ -2,6 +2,40 @@ import chalk from "chalk";
 import stringWidth from "string-width";
 import stripAnsi from "strip-ansi";
 
+// ─── Color System ───────────────────────────────────────────
+// Semantic palette — every color usage goes through here.
+
+const C = {
+  // Brand & structure
+  accent:    chalk.cyan,
+  accentDim: chalk.dim.cyan,
+  brand:     chalk.bold.cyan,
+  muted:     chalk.dim,
+  border:    chalk.dim,
+
+  // Semantic
+  success:   chalk.green,
+  warn:      chalk.yellow,
+  error:     chalk.red.bold,
+  info:      chalk.cyan,
+
+  // Text
+  bold:      chalk.bold,
+  italic:    chalk.italic,
+  strike:    chalk.strikethrough,
+
+  // Code & data
+  code:      chalk.cyan,
+  file:      chalk.blue,
+  link:      chalk.underline.blue,
+  linkDim:   chalk.dim,
+
+  // Diff
+  diffAdd:   chalk.green,
+  diffDel:   chalk.red,
+  diffHunk:  chalk.dim.cyan,
+};
+
 // ─── Helper: visual width (handles CJK, emoji, ANSI) ───────
 
 function visWidth(s: string): number {
@@ -21,29 +55,50 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
+// ─── Helper: box line builder ───────────────────────────────
+
+function boxLine(content: string, width: number): string {
+  return C.border("  │") + " " + padVisual(content, width) + " " + C.border("│");
+}
+
+function boxEmpty(width: number): string {
+  return C.border("  │") + " ".repeat(width + 2) + C.border("│");
+}
+
 // ─── Welcome ─────────────────────────────────────────────────
 
-export function printWelcome() {
-  const title = "  ✻ Claude Code Mini";
-  const help = "  /help for commands";
-  const width = 40;
-  const top = chalk.dim("╭" + "─".repeat(width) + "╮");
-  const bot = chalk.dim("╰" + "─".repeat(width) + "╯");
-  const line1 = chalk.dim("│") + chalk.bold(" " + title.padEnd(width - 1)) + chalk.dim("│");
-  const line2 = chalk.dim("│") + chalk.dim(" " + help.padEnd(width - 1)) + chalk.dim("│");
-  console.log(`\n${top}\n${line1}\n${line2}\n${bot}\n`);
+export function printWelcome(model?: string) {
+  const width = 38;
+  const top = C.border("  ╭" + "─".repeat(width + 2) + "╮");
+  const bot = C.border("  ╰" + "─".repeat(width + 2) + "╯");
+  const empty = boxEmpty(width);
+
+  const title = C.brand("✻ Claude Code Mini") + "  " + C.muted("v1.0.0");
+  const titleLine = boxLine(title, width);
+
+  const lines = [top, empty, titleLine, empty];
+
+  if (model) {
+    const modelLine = boxLine(C.muted("model  ") + C.accent(model), width);
+    lines.push(modelLine);
+  }
+
+  const helpLine = boxLine(C.muted("/help for commands"), width);
+  lines.push(helpLine, empty, bot);
+
+  console.log("\n" + lines.join("\n") + "\n");
 }
 
 // ─── User prompt ─────────────────────────────────────────────
 
 export function printUserPrompt() {
-  process.stdout.write(chalk.bold.white("\n❯ "));
+  process.stdout.write(C.brand("\n> "));
 }
 
 // ─── Markdown Renderer ──────────────────────────────────────
 
 class MarkdownRenderer {
-  private buffer = "";          // partial line accumulator
+  private buffer = "";
   private inCodeBlock = false;
   private codeBuffer: string[] = [];
   private codeLang = "";
@@ -66,7 +121,6 @@ class MarkdownRenderer {
       this.tableBuffer = [];
     }
     if (this.inCodeBlock) {
-      // Unclosed code block — render what we have
       this.renderCodeBlock();
       this.inCodeBlock = false;
       this.codeBuffer = [];
@@ -80,8 +134,6 @@ class MarkdownRenderer {
 
   push(chunk: string): void {
     this.buffer += chunk;
-
-    // Process complete lines
     let nlIdx: number;
     while ((nlIdx = this.buffer.indexOf("\n")) !== -1) {
       const line = this.buffer.slice(0, nlIdx);
@@ -91,23 +143,21 @@ class MarkdownRenderer {
   }
 
   private processLine(line: string): void {
-    // Check for code fence
     const trimmed = line.trimStart();
+
+    // Code fence
     if (trimmed.startsWith("```")) {
       if (!this.inCodeBlock) {
-        // Flush any pending table before entering code block
         if (this.inTable) {
           this.renderTable();
           this.inTable = false;
           this.tableBuffer = [];
         }
-        // Entering code block
         this.inCodeBlock = true;
         this.codeLang = trimmed.slice(3).trim();
         this.codeBuffer = [];
         return;
       } else {
-        // Closing code block
         this.renderCodeBlock();
         this.inCodeBlock = false;
         this.codeBuffer = [];
@@ -121,9 +171,8 @@ class MarkdownRenderer {
       return;
     }
 
-    // Table detection: lines starting and ending with |
-    const isTableRow = /^\s*\|.*\|\s*$/.test(line);
-    if (isTableRow) {
+    // Table detection
+    if (/^\s*\|.*\|\s*$/.test(line)) {
       if (!this.inTable) {
         this.inTable = true;
         this.tableBuffer = [];
@@ -132,155 +181,132 @@ class MarkdownRenderer {
       return;
     }
 
-    // If we were in a table and hit a non-table line, flush the table
     if (this.inTable) {
       this.renderTable();
       this.inTable = false;
       this.tableBuffer = [];
     }
 
-    // Normal line — render immediately
     process.stdout.write(this.renderLine(line) + "\n");
   }
 
   private renderCodeBlock(): void {
-    const lines = this.codeBuffer;
+    // Expand tabs to spaces (4-space tab stops) for consistent width calculation
+    const lines = this.codeBuffer.map(l => l.replace(/\t/g, "    "));
     const langLabel = this.codeLang || "code";
-    // Determine box width
-    const maxLineLen = lines.reduce((max, l) => Math.max(max, l.length), 0);
-    const boxWidth = Math.max(maxLineLen + 4, langLabel.length + 6, 30);
+    const maxLineWidth = lines.reduce((max, l) => Math.max(max, visWidth(l)), 0);
+    const contentWidth = Math.max(maxLineWidth, visWidth(langLabel) + 2, 28);
 
-    // Top border
-    const topLabel = `─ ${langLabel} `;
-    const topRight = "─".repeat(Math.max(boxWidth - topLabel.length - 1, 0));
-    process.stdout.write(chalk.dim(`  ╭${topLabel}${topRight}╮`) + "\n");
+    const title = `─ ${langLabel} `;
+    const titlePad = "─".repeat(Math.max(contentWidth + 2 - visWidth(title), 0));
+    process.stdout.write(C.border(`  ╭${title}${titlePad}╮`) + "\n");
 
-    // Content lines
-    for (const l of lines) {
-      const padded = l.padEnd(boxWidth - 2);
-      process.stdout.write(chalk.dim("  │ ") + padded + chalk.dim(" │") + "\n");
+    for (const line of lines) {
+      const padded = padVisual(line, contentWidth);
+      process.stdout.write(C.border("  │ ") + padded + C.border(" │") + "\n");
     }
 
-    // Bottom border
-    process.stdout.write(chalk.dim(`  ╰${"─".repeat(boxWidth)}╯`) + "\n");
+    process.stdout.write(C.border(`  ╰${"─".repeat(contentWidth + 2)}╯`) + "\n");
   }
 
   private renderTable(): void {
     const rows = this.tableBuffer;
     if (rows.length === 0) return;
 
-    // Parse cells from each row
     const parsedRows: string[][] = [];
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i].trim();
-      // Split by | and remove first/last empty entries
-      const cells = row.split("|").slice(1, -1).map(c => c.trim());
-      // Detect separator row (e.g. |------|------|)
-      if (cells.every(c => /^:?-{2,}:?$/.test(c))) {
-        continue;
-      }
+    for (const row of rows) {
+      const cells = row.trim().split("|").slice(1, -1).map(c => c.trim());
+      if (cells.every(c => /^:?-{2,}:?$/.test(c))) continue;
       parsedRows.push(cells);
     }
-
     if (parsedRows.length === 0) return;
 
-    // Determine column count and widths (using visual width for CJK/emoji)
     const colCount = Math.max(...parsedRows.map(r => r.length));
     const colWidths: number[] = [];
     for (let c = 0; c < colCount; c++) {
       colWidths[c] = 0;
       for (const row of parsedRows) {
-        const cell = row[c] || "";
-        colWidths[c] = Math.max(colWidths[c], visWidth(cell));
+        colWidths[c] = Math.max(colWidths[c], visWidth(row[c] || ""));
       }
     }
 
-    // Render top border
-    const topParts = colWidths.map(w => "─".repeat(w + 2));
-    process.stdout.write(chalk.dim("  ╭" + topParts.join("┬") + "╮") + "\n");
+    const hr = (l: string, m: string, r: string) =>
+      C.border("  " + l + colWidths.map(w => "─".repeat(w + 2)).join(m) + r);
 
-    // Render header row (first parsed row)
+    process.stdout.write(hr("╭", "┬", "╮") + "\n");
+
+    // Header
     const header = parsedRows[0];
-    const headerCells = colWidths.map((w, i) => {
-      const cell = header[i] || "";
-      return " " + padVisual(chalk.bold(cell), w) + " ";
-    });
-    process.stdout.write(chalk.dim("  │") + headerCells.join(chalk.dim("│")) + chalk.dim("│") + "\n");
+    const hCells = colWidths.map((w, i) =>
+      " " + padVisual(C.bold(header[i] || ""), w) + " "
+    );
+    process.stdout.write(C.border("  │") + hCells.join(C.border("│")) + C.border("│") + "\n");
+    process.stdout.write(hr("├", "┼", "┤") + "\n");
 
-    // Render header separator
-    const sepParts = colWidths.map(w => "─".repeat(w + 2));
-    process.stdout.write(chalk.dim("  ├" + sepParts.join("┼") + "┤") + "\n");
-
-    // Render data rows
+    // Data
     for (let r = 1; r < parsedRows.length; r++) {
       const row = parsedRows[r];
-      const dataCells = colWidths.map((w, i) => {
-        const cell = row[i] || "";
-        const rendered = this.renderInline(cell);
+      const cells = colWidths.map((w, i) => {
+        const rendered = this.renderInline(row[i] || "");
         return " " + padVisual(rendered, w) + " ";
       });
-      process.stdout.write(chalk.dim("  │") + dataCells.join(chalk.dim("│")) + chalk.dim("│") + "\n");
+      process.stdout.write(C.border("  │") + cells.join(C.border("│")) + C.border("│") + "\n");
     }
 
-    // Render bottom border
-    const botParts = colWidths.map(w => "─".repeat(w + 2));
-    process.stdout.write(chalk.dim("  ╰" + botParts.join("┴") + "╯") + "\n");
+    process.stdout.write(hr("╰", "┴", "╯") + "\n");
   }
 
   private renderLine(line: string): string {
-    // Horizontal rule: --- or ***  or ___
+    // Horizontal rule
     if (/^(\s*)([-*_])\2{2,}\s*$/.test(line)) {
-      return chalk.dim("─".repeat(40));
+      return C.muted("─".repeat(40));
     }
 
-    // Headings: # ## ###
-    const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
+    // Headings
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
-      return chalk.bold(headingMatch[2]);
+      const level = headingMatch[1].length;
+      const text = this.renderInline(headingMatch[2]);
+      if (level === 1) return "\n" + C.brand(text);
+      if (level === 2) return "\n" + C.bold(text);
+      return C.bold(text);
     }
 
-    // Block quote: > text
+    // Block quote
     const quoteMatch = line.match(/^>\s?(.*)$/);
     if (quoteMatch) {
-      // Keep quote content but drop leading marker to avoid noisy ">" prefixes in CLI output.
-      return this.renderInline(quoteMatch[1]);
+      return C.accentDim("  │ ") + C.italic(this.renderInline(quoteMatch[1]));
     }
 
-    // Unordered list: - item or * item
+    // Unordered list
     const ulMatch = line.match(/^(\s*)([-*])\s+(.*)$/);
     if (ulMatch) {
-      return ulMatch[1] + chalk.dim(ulMatch[2]) + " " + this.renderInline(ulMatch[3]);
+      return ulMatch[1] + C.muted("·") + " " + this.renderInline(ulMatch[3]);
     }
 
-    // Ordered list: 1. item
+    // Ordered list
     const olMatch = line.match(/^(\s*)(\d+\.)\s+(.*)$/);
     if (olMatch) {
-      return olMatch[1] + chalk.dim(olMatch[2]) + " " + this.renderInline(olMatch[3]);
+      return olMatch[1] + C.muted(olMatch[2]) + " " + this.renderInline(olMatch[3]);
     }
 
-    // Regular line — apply inline formatting
     return this.renderInline(line);
   }
 
   private renderInline(text: string): string {
-    // Process inline markdown patterns
-    // Order matters: code first (to avoid processing markdown inside code spans)
-
-    // Inline code: `code`
-    text = text.replace(/`([^`]+)`/g, (_m, code) => chalk.cyan(code));
-
-    // Bold: **text**
-    text = text.replace(/\*\*([^*]+)\*\*/g, (_m, t) => chalk.bold(t));
-
-    // Italic: *text* or _text_  (but not inside words for _)
-    text = text.replace(/(?<!\w)\*([^*]+)\*(?!\w)/g, (_m, t) => chalk.italic(t));
-    text = text.replace(/(?<!\w)_([^_]+)_(?!\w)/g, (_m, t) => chalk.italic(t));
-
-    // Links: [text](url)
+    // Inline code
+    text = text.replace(/`([^`]+)`/g, (_m, code) => C.code(code));
+    // Bold
+    text = text.replace(/\*\*([^*]+)\*\*/g, (_m, t) => C.bold(t));
+    // Italic
+    text = text.replace(/(?<!\w)\*([^*]+)\*(?!\w)/g, (_m, t) => C.italic(t));
+    text = text.replace(/(?<!\w)_([^_]+)_(?!\w)/g, (_m, t) => C.italic(t));
+    // Strikethrough
+    text = text.replace(/~~([^~]+)~~/g, (_m, t) => C.strike(t));
+    // Links
     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) =>
-      chalk.underline.blue(label) + chalk.dim(` (${url})`)
+      C.link(label) + C.linkDim(` (${url})`)
     );
-
     return text;
   }
 }
@@ -301,14 +327,28 @@ export function resetMarkdown(): void {
   mdRenderer.reset();
 }
 
+// ─── Tool icons by category ─────────────────────────────────
+
+const TOOL_ICONS: Record<string, string> = {
+  read_file:    "◇",   // read
+  list_files:   "◇",
+  grep_search:  "⊙",   // search
+  write_file:   "◆",   // write
+  edit_file:    "◆",
+  run_shell:    "▶",   // execute
+  skill:        "★",   // skill
+  agent:        "▸",   // sub-agent
+};
+
 // ─── Tool call ───────────────────────────────────────────────
 
 export function printToolCall(name: string, input: Record<string, any>) {
+  const icon = TOOL_ICONS[name] || "●";
   const summary = getToolSummary(name, input);
   console.log(
-    chalk.dim.cyan("\n  ● ") +
-      chalk.bold(name) +
-      chalk.dim(` ${summary}`)
+    C.accentDim(`\n  ${icon} `) +
+    C.accent(name) +
+    C.muted("  " + summary)
   );
 }
 
@@ -320,56 +360,66 @@ export function printToolResult(name: string, result: string) {
     printFileChangeResult(name, result);
     return;
   }
+
+  const isError = result.startsWith("Error");
+  const prefix = isError ? C.error("  ✗ ") : C.muted("  ↳ ");
+
   const maxLen = 500;
   const truncated =
     result.length > maxLen
-      ? result.slice(0, maxLen) + chalk.gray(`\n  │ ... (${result.length} chars total)`)
+      ? result.slice(0, maxLen) + C.muted(`\n    ... (${result.length} chars total)`)
       : result;
-  const lines = truncated.split("\n").map((l) => chalk.dim("  │ ") + chalk.dim(l));
-  console.log(lines.join("\n"));
+
+  const lines = truncated.split("\n");
+  // First line with status prefix
+  console.log(prefix + C.muted(lines[0]));
+  // Rest indented
+  for (let i = 1; i < lines.length; i++) {
+    console.log(C.muted("    " + lines[i]));
+  }
 }
 
 // ─── File change result ──────────────────────────────────────
 
-function printFileChangeResult(name: string, result: string) {
+function printFileChangeResult(_name: string, result: string) {
   const lines = result.split("\n");
-  // First line is the success message
-  console.log(chalk.dim("  │ ") + chalk.dim(lines[0]));
+  // Success message
+  console.log(C.success("  ✓ ") + C.muted(lines[0]));
 
-  // Rest is content preview or diff
+  // Diff display
   const maxDisplayLines = 40;
   const contentLines = lines.slice(1);
   const displayLines = contentLines.slice(0, maxDisplayLines);
 
   for (const line of displayLines) {
     if (!line.trim()) continue;
-    const prefix = chalk.dim("  │ ");
+    const pad = "    ";
     if (line.startsWith("@@")) {
-      console.log(prefix + chalk.cyan(line));
+      console.log(pad + C.diffHunk(line));
     } else if (line.startsWith("- ")) {
-      console.log(prefix + chalk.red(line));
+      console.log(pad + C.diffDel(line));
     } else if (line.startsWith("+ ")) {
-      console.log(prefix + chalk.green(line));
+      console.log(pad + C.diffAdd(line));
     } else {
-      console.log(prefix + chalk.dim(line));
+      console.log(pad + C.muted(line));
     }
   }
   if (contentLines.length > maxDisplayLines) {
-    console.log(chalk.dim(`  │ ... (${contentLines.length - maxDisplayLines} more lines)`));
+    console.log(C.muted(`    ... (${contentLines.length - maxDisplayLines} more lines)`));
   }
 }
 
 // ─── Error ───────────────────────────────────────────────────
 
 export function printError(msg: string) {
-  console.error(chalk.red.bold(`\n  ✗ ${msg}`));
+  console.error(C.error(`\n  ✗ ${msg}`));
 }
 
 // ─── Confirmation ────────────────────────────────────────────
 
 export function printConfirmation(command: string): void {
   console.log(
-    chalk.yellow("\n  ⚠ Allow: ") + chalk.bold.white(command)
+    C.warn("\n  ⚠ Allow: ") + C.bold(command)
   );
 }
 
@@ -385,9 +435,17 @@ export function printCost(inputTokens: number, outputTokens: number) {
   const costIn = (inputTokens / 1_000_000) * 3;
   const costOut = (outputTokens / 1_000_000) * 15;
   const total = costIn + costOut;
+
+  // Micro bar: visualize in/out ratio
+  const barWidth = 12;
+  const totalTokens = inputTokens + outputTokens || 1;
+  const inWidth = Math.round((inputTokens / totalTokens) * barWidth);
+  const outWidth = barWidth - inWidth;
+  const bar = C.accentDim("━".repeat(inWidth)) + C.muted("━".repeat(outWidth));
+
   console.log(
-    chalk.dim(
-      `  ↳ ${formatTokens(inputTokens)} in · ${formatTokens(outputTokens)} out · $${total.toFixed(2)}`
+    C.muted("  ↳ ") + bar + C.muted(
+      ` ${formatTokens(inputTokens)} in · ${formatTokens(outputTokens)} out · $${total.toFixed(2)}`
     )
   );
 }
@@ -396,14 +454,14 @@ export function printCost(inputTokens: number, outputTokens: number) {
 
 export function printRetry(attempt: number, max: number, reason: string) {
   console.log(
-    chalk.dim.yellow(`\n  ↻ retry ${attempt}/${max} · ${reason}`)
+    C.warn(`\n  ↻ retry ${attempt}/${max}`) + C.muted(` · ${reason}`)
   );
 }
 
 // ─── Info ────────────────────────────────────────────────────
 
 export function printInfo(msg: string) {
-  console.log(chalk.dim.cyan(`\n  ● ${msg}`));
+  console.log(C.accentDim(`\n  ● `) + C.muted(msg));
 }
 
 // ─── Spinner for API calls ──────────────────────────────────
@@ -414,12 +472,12 @@ let spinnerTimer: ReturnType<typeof setInterval> | null = null;
 let spinnerFrame = 0;
 
 export function startSpinner(label = "Thinking") {
-  if (spinnerTimer) return; // already running
+  if (spinnerTimer) return;
   spinnerFrame = 0;
-  process.stdout.write(chalk.dim(`\n  ${SPINNER_FRAMES[0]} ${label}...`));
+  process.stdout.write(C.muted(`\n  ${SPINNER_FRAMES[0]} ${label}...`));
   spinnerTimer = setInterval(() => {
     spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES.length;
-    process.stdout.write(`\r${chalk.dim(`  ${SPINNER_FRAMES[spinnerFrame]} ${label}...`)}`);
+    process.stdout.write(`\r${C.muted(`  ${SPINNER_FRAMES[spinnerFrame]} ${label}...`)}`);
   }, 80);
 }
 
@@ -435,13 +493,13 @@ export function stopSpinner() {
 
 export function printSubAgentStart(type: string, description: string) {
   console.log(
-    chalk.dim.magenta(`\n  ▸ agent [${type}] `) + chalk.dim(description)
+    C.accentDim(`\n  ▸ `) + C.accent(`agent`) + C.muted(` [${type}] ${description}`)
   );
 }
 
-export function printSubAgentEnd(type: string, description: string) {
+export function printSubAgentEnd(type: string, _description: string) {
   console.log(
-    chalk.dim.magenta(`  ◂ agent [${type}] done`)
+    C.accentDim(`  ◂ `) + C.accent(`agent`) + C.muted(` [${type}] done`)
   );
 }
 

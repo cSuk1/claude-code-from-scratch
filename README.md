@@ -1,5 +1,7 @@
 # Claude Code From Scratch
 
+[English](README_EN.md) | 简体中文
+
 一个从零实现的极简 AI 编程代理，灵感来自 [Claude Code](https://claude.ai/code)。
 
 > Forked from [Windy3f3f3f3f/claude-code-from-scratch](https://github.com/Windy3f3f3f3f/claude-code-from-scratch)，在原项目基础上进行了修改。
@@ -77,28 +79,36 @@ npm run dev
 
 ```
 src/
-├── cli.ts                 # 主入口
+├── cli.ts                    # 主入口
 ├── cli/
-│   ├── args.ts            # 参数解析
-│   ├── config.ts          # API 配置解析
-│   └── repl.ts            # REPL 交互循环
+│   ├── args.ts               # 参数解析
+│   ├── config.ts             # API 配置解析
+│   └── repl.ts               # REPL 交互循环
 ├── core/
-│   ├── agent.ts           # Agent 核心类（对话循环、工具执行、压缩管线）
-│   └── prompt.ts          # 系统提示词构建（模板渲染 + 动态注入）
+│   ├── agent.ts              # Agent 核心类（对话循环、工具执行）
+│   ├── agent-compression.ts  # 上下文压缩管线
+│   ├── agent-model.ts        # 模型配置与选择
+│   ├── agent-openai-tools.ts # OpenAI 工具格式转换
+│   ├── agent-retry.ts        # API 重试逻辑
+│   └── prompt.ts             # 系统提示词构建
 ├── tools/
-│   └── tools.ts           # 工具定义与执行
+│   ├── tools.ts              # 工具模块入口
+│   ├── definitions.ts        # 工具定义（Anthropic 格式）
+│   ├── dispatcher.ts         # 工具调度与执行
+│   ├── executors.ts          # 各工具的具体实现
+│   └── permissions.ts        # 权限检查与危险命令检测
 ├── ui/
-│   └── ui.ts              # 终端 UI（颜色、spinner、格式化）
+│   └── ui.ts                 # 终端 UI（颜色、spinner、Markdown 渲染）
 ├── storage/
-│   ├── session.ts         # 会话持久化
-│   └── memory.ts          # 记忆系统
+│   ├── session.ts            # 会话持久化
+│   └── memory.ts             # 记忆系统
 ├── extensions/
-│   ├── skills.ts          # 技能发现与执行
-│   └── subagent.ts        # 子代理系统
+│   ├── skills.ts             # 技能发现与执行
+│   └── subagent.ts           # 子代理系统
 ├── utils/
-│   └── frontmatter.ts     # YAML frontmatter 解析
+│   └── frontmatter.ts        # YAML frontmatter 解析
 └── templates/
-    └── system-prompt.md   # 系统提示词模板
+    └── system-prompt.md      # 系统提示词模板
 ```
 
 ## 架构概览
