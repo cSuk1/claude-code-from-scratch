@@ -3,9 +3,9 @@ import { join, resolve } from "path";
 import { execSync } from "child_process";
 import * as os from "os";
 import { fileURLToPath } from "url";
-import { buildMemoryPromptSection } from "./memory.js";
-import { buildSkillDescriptions } from "./skills.js";
-import { buildAgentDescriptions } from "./subagent.js";
+import { buildMemoryPromptSection } from "../storage/memory.js";
+import { buildSkillDescriptions } from "../extensions/skills.js";
+import { buildAgentDescriptions } from "../extensions/subagent.js";
 
 // ─── CLAUDE.md loader ────────────────────────────────────────
 
@@ -49,7 +49,7 @@ export function getGitContext(): string {
 
 export function buildSystemPrompt(): string {
   const __dirname = fileURLToPath(new URL(".", import.meta.url));
-  const template = readFileSync(join(__dirname, "system-prompt.md"), "utf-8");
+  const template = readFileSync(join(__dirname, "../templates/system-prompt.md"), "utf-8");
 
   const date = new Date().toISOString().split("T")[0];
   const platform = `${os.platform()} ${os.arch()}`;

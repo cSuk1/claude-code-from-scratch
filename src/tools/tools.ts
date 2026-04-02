@@ -5,7 +5,7 @@ import { dirname, join, basename, extname } from "path";
 import { homedir } from "os";
 
 const isWin = process.platform === "win32";
-import { getMemoryDir } from "./memory.js";
+import { getMemoryDir } from "../storage/memory.js";
 import type Anthropic from "@anthropic-ai/sdk";
 // Note: skill execution is handled in agent.ts (supports fork mode)
 

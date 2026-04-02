@@ -5,9 +5,9 @@
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import type { ToolDef } from "./tools.js";
-import { toolDefinitions } from "./tools.js";
-import { parseFrontmatter } from "./frontmatter.js";
+import type { ToolDef } from "../tools/tools.js";
+import { toolDefinitions } from "../tools/tools.js";
+import { parseFrontmatter } from "../utils/frontmatter.js";
 
 // ─── Types ──────────────────────────────────────────────────
 

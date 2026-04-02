@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import chalk from "chalk";
-import { toolDefinitions, executeTool, checkPermission, type ToolDef, type PermissionMode } from "./tools.js";
+import { toolDefinitions, executeTool, checkPermission, type ToolDef, type PermissionMode } from "../tools/tools.js";
 import {
   printAssistantText,
   printToolCall,
@@ -16,10 +16,10 @@ import {
   printSubAgentEnd,
   startSpinner,
   stopSpinner,
-} from "./ui.js";
-import { saveSession } from "./session.js";
+} from "../ui/ui.js";
+import { saveSession } from "../storage/session.js";
 import { buildSystemPrompt } from "./prompt.js";
-import { getSubAgentConfig, type SubAgentType } from "./subagent.js";
+import { getSubAgentConfig, type SubAgentType } from "../extensions/subagent.js";
 import * as readline from "readline";
 import { randomUUID } from "crypto";
 
@@ -629,7 +629,7 @@ export class Agent {
   // ─── Skill fork mode ─────────────────────────────────────
 
   private async executeSkillTool(input: Record<string, any>): Promise<string> {
-    const { executeSkill } = await import("./skills.js");
+    const { executeSkill } = await import("../extensions/skills.js");
     const result = executeSkill(input.skill_name, input.args || "");
     if (!result) return `Unknown skill: ${input.skill_name}`;
 
