@@ -2,6 +2,17 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import chalk from "chalk";
 import { toolDefinitions, executeTool, checkPermission, type ToolDef, type PermissionMode } from "../tools/tools.js";
+import { getContextWindow, modelSupportsAdaptiveThinking, modelSupportsThinking, getMaxOutputTokens } from "./agent-model.js";
+import { withRetry } from "./agent-retry.js";
+import { toOpenAITools } from "./agent-openai-tools.js";
+import {
+  KEEP_RECENT_RESULTS,
+  MICROCOMPACT_IDLE_MS,
+  OLD_RESULT_PLACEHOLDER,
+  SNIPPABLE_TOOLS,
+  SNIP_PLACEHOLDER,
+  SNIP_THRESHOLD,
+} from "./agent-compression.js";
 import {
   printAssistantText,
   printToolCall,
@@ -16,104 +27,14 @@ import {
   printSubAgentEnd,
   startSpinner,
   stopSpinner,
+  flushMarkdown,
+  resetMarkdown,
 } from "../ui/ui.js";
 import { saveSession } from "../storage/session.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { getSubAgentConfig, type SubAgentType } from "../extensions/subagent.js";
 import * as readline from "readline";
 import { randomUUID } from "crypto";
-
-// ─── Retry with exponential backoff ──────────────────────────
-
-function isRetryable(error: any): boolean {
-  const status = error?.status || error?.statusCode;
-  if ([429, 503, 529].includes(status)) return true;
-  if (error?.code === "ECONNRESET" || error?.code === "ETIMEDOUT") return true;
-  if (error?.message?.includes("overloaded")) return true;
-  return false;
-}
-
-async function withRetry<T>(
-  fn: (signal?: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-  maxRetries = 3
-): Promise<T> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await fn(signal);
-    } catch (error: any) {
-      if (signal?.aborted) throw error;
-      if (attempt >= maxRetries || !isRetryable(error)) throw error;
-      const delay = Math.min(1000 * Math.pow(2, attempt), 30000) + Math.random() * 1000;
-      const reason = error?.status ? `HTTP ${error.status}` : error?.code || "network error";
-      printRetry(attempt + 1, maxRetries, reason);
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-}
-
-// ─── Model context windows ──────────────────────────────────
-
-const MODEL_CONTEXT: Record<string, number> = {
-  "claude-opus-4-6": 200000,
-  "claude-sonnet-4-6": 200000,
-  "claude-sonnet-4-20250514": 200000,
-  "claude-haiku-4-5-20251001": 200000,
-  "claude-opus-4-20250514": 200000,
-  "gpt-4o": 128000,
-  "gpt-4o-mini": 128000,
-};
-
-function getContextWindow(model: string): number {
-  return MODEL_CONTEXT[model] || 200000;
-}
-
-// ─── Thinking support detection ─────────────────────────────
-// Mirrors Claude Code: adaptive for 4.6, enabled for older Claude 4, disabled for the rest.
-
-function modelSupportsThinking(model: string): boolean {
-  const m = model.toLowerCase();
-  // Claude 4+ models support thinking (not Claude 3.x)
-  if (m.includes("claude-3-") || m.includes("3-5-") || m.includes("3-7-")) return false;
-  if (m.includes("claude") && (m.includes("opus") || m.includes("sonnet") || m.includes("haiku"))) return true;
-  return false; // non-Claude models (GPT, etc.) — no thinking
-}
-
-function modelSupportsAdaptiveThinking(model: string): boolean {
-  const m = model.toLowerCase();
-  return m.includes("opus-4-6") || m.includes("sonnet-4-6");
-}
-
-// Max output tokens by model (mirrors Claude Code's context.ts)
-function getMaxOutputTokens(model: string): number {
-  const m = model.toLowerCase();
-  if (m.includes("opus-4-6")) return 64000;
-  if (m.includes("sonnet-4-6")) return 32000;
-  if (m.includes("opus-4") || m.includes("sonnet-4") || m.includes("haiku-4")) return 32000;
-  return 16384; // safe default for unknown models
-}
-
-// ─── Convert tools to OpenAI format ─────────────────────────
-
-function toOpenAITools(tools: ToolDef[]): OpenAI.ChatCompletionTool[] {
-  return tools.map((t) => ({
-    type: "function" as const,
-    function: {
-      name: t.name,
-      description: t.description,
-      parameters: t.input_schema as Record<string, unknown>,
-    },
-  }));
-}
-
-// ─── Multi-tier compression constants ────────────────────────
-// Mirrors Claude Code's 4-layer compression: budget → snip → microcompact → auto-compact
-
-const SNIPPABLE_TOOLS = new Set(["read_file", "grep_search", "list_files", "run_shell"]);
-const SNIP_PLACEHOLDER = "[Content snipped - re-read if needed]";
-const SNIP_THRESHOLD = 0.60;
-const MICROCOMPACT_IDLE_MS = 5 * 60 * 1000; // 5 minutes
-const KEEP_RECENT_RESULTS = 3;
 
 // ─── Agent ───────────────────────────────────────────────────
 
@@ -571,7 +492,7 @@ export class Agent {
       for (let bi = 0; bi < msg.content.length; bi++) {
         const block = msg.content[bi] as any;
         if (block.type === "tool_result" && typeof block.content === "string" &&
-            block.content !== SNIP_PLACEHOLDER && block.content !== "[Old result cleared]") {
+            block.content !== SNIP_PLACEHOLDER && block.content !== OLD_RESULT_PLACEHOLDER) {
           allResults.push({ msgIdx: mi, blockIdx: bi });
         }
       }
@@ -580,7 +501,7 @@ export class Agent {
     const clearCount = allResults.length - KEEP_RECENT_RESULTS;
     for (let i = 0; i < clearCount && i < allResults.length; i++) {
       const r = allResults[i];
-      (this.anthropicMessages[r.msgIdx].content as any[])[r.blockIdx].content = "[Old result cleared]";
+      (this.anthropicMessages[r.msgIdx].content as any[])[r.blockIdx].content = OLD_RESULT_PLACEHOLDER;
     }
   }
 
@@ -591,14 +512,14 @@ export class Agent {
     for (let i = 0; i < this.openaiMessages.length; i++) {
       const msg = this.openaiMessages[i] as any;
       if (msg.role === "tool" && typeof msg.content === "string" &&
-          msg.content !== SNIP_PLACEHOLDER && msg.content !== "[Old result cleared]") {
+          msg.content !== SNIP_PLACEHOLDER && msg.content !== OLD_RESULT_PLACEHOLDER) {
         toolMsgs.push(i);
       }
     }
 
     const clearCount = toolMsgs.length - KEEP_RECENT_RESULTS;
     for (let i = 0; i < clearCount && i < toolMsgs.length; i++) {
-      (this.openaiMessages[toolMsgs[i]] as any).content = "[Old result cleared]";
+      (this.openaiMessages[toolMsgs[i]] as any).content = OLD_RESULT_PLACEHOLDER;
     }
   }
 
@@ -813,6 +734,7 @@ export class Agent {
 
       // Stream text content (SDK high-level event)
       let firstText = true;
+      if (!this.isSubAgent) resetMarkdown();
       stream.on("text", (text: string) => {
         if (firstText) { stopSpinner(); this.emitText("\n"); firstText = false; }
         this.emitText(text);
@@ -836,6 +758,7 @@ export class Agent {
       }
 
       const finalMessage = await stream.finalMessage();
+      if (!this.isSubAgent) flushMarkdown();
 
       // Filter out thinking blocks from stored history
       // (Claude Code preserves redacted blocks, but for simplicity we strip them)
@@ -844,7 +767,10 @@ export class Agent {
       );
 
       return finalMessage;
-    }, this.abortController?.signal);
+    }, {
+      signal: this.abortController?.signal,
+      onRetry: ({ attempt, maxRetries, reason }) => printRetry(attempt, maxRetries, reason),
+    });
   }
 
   // ─── OpenAI-compatible backend ───────────────────────────────
@@ -960,6 +886,7 @@ export class Agent {
       // Accumulate the streamed response
       let content = "";
       let firstText = true;
+      if (!this.isSubAgent) resetMarkdown();
       const toolCalls: Map<number, { id: string; name: string; arguments: string }> = new Map();
       let finishReason = "";
       let usage: { prompt_tokens: number; completion_tokens: number } | undefined;
@@ -1005,6 +932,8 @@ export class Agent {
         }
       }
 
+      if (!this.isSubAgent) flushMarkdown();
+
       // Reconstruct ChatCompletion from streamed chunks
       const assembledToolCalls = toolCalls.size > 0
         ? Array.from(toolCalls.entries())
@@ -1036,7 +965,10 @@ export class Agent {
         ],
         usage: usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
       } as OpenAI.ChatCompletion;
-    }, this.abortController?.signal);
+    }, {
+      signal: this.abortController?.signal,
+      onRetry: ({ attempt, maxRetries, reason }) => printRetry(attempt, maxRetries, reason),
+    });
   }
 
   // ─── Shared ──────────────────────────────────────────────────
