@@ -1,7 +1,7 @@
 import * as readline from "readline";
 import chalk from "chalk";
 import { Agent } from "../core/agent.js";
-import { printWelcome, printError, printInfo, showMenu } from "../ui/ui.js";
+import { printWelcome, printError, printInfo, showMenu, showQuestion, showFreeTextInput } from "../ui/ui.js";
 import { discoverSkills, resolveSkillPrompt, getSkillByName, executeSkill } from "../extensions/skills.js";
 import { CommandRegistry, registerBuiltinCommands } from "./commands.js";
 import { generatePermissionRule, savePermissionRule } from "../tools/tools.js";
@@ -102,6 +102,25 @@ export async function runRepl(agent: Agent) {
 
     // null (Ctrl+C / Escape) or "deny"
     return "deny";
+  });
+
+  // Provide askUserFn with interactive UI
+  agent.setAskUserFn(async (question: string, options?: string[], allowFreeText?: boolean) => {
+    // Pause readline to avoid conflicts with raw mode
+    rl.pause();
+
+    let answer: string;
+    try {
+      if (options && options.length > 0) {
+        answer = await showQuestion(question, options, allowFreeText);
+      } else {
+        answer = await showFreeTextInput(question);
+      }
+    } finally {
+      rl.resume();
+    }
+
+    return answer;
   });
 
   // Ctrl+C handling

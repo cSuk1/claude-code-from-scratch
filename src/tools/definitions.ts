@@ -244,4 +244,51 @@ export const toolDefinitions: ToolDef[] = [
       properties: {},
     },
   },
+  // ─── Web search tool ────────────────────────────────────────
+  {
+    name: "web_search",
+    description:
+      "Search the web using DuckDuckGo and return results. Use this when you need up-to-date information, documentation, or answers that are beyond your training data.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query string.",
+        },
+        max_results: {
+          type: "number",
+          description: "Maximum number of results to return (default: 10, max: 20).",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  // ─── User interaction tool ──────────────────────────────────
+  {
+    name: "ask_user",
+    description:
+      "Ask the user a question and wait for their response. Use this when you need clarification, confirmation, or additional information from the user to proceed. Supports free-form text input or predefined options for the user to choose from.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        question: {
+          type: "string",
+          description: "The question to ask the user. Be clear and specific.",
+        },
+        options: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Optional list of predefined options for the user to choose from. If provided, the user selects from these options. If omitted, the user provides free-form text input.",
+        },
+        allow_free_text: {
+          type: "boolean",
+          description:
+            "When options are provided, whether to also allow free-form text input in addition to the predefined options. Defaults to false.",
+        },
+      },
+      required: ["question"],
+    },
+  },
 ];

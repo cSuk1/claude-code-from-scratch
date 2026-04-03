@@ -333,6 +333,7 @@ const TOOL_ICONS: Record<string, string> = {
   run_shell:    "▶",   // execute
   skill:        "★",   // skill
   agent:        "▸",   // sub-agent
+  ask_user:     "?",   // question
 };
 
 // ─── Tool call ───────────────────────────────────────────────
@@ -719,7 +720,175 @@ function getToolSummary(name: string, input: Record<string, any>): string {
       return input.skill_name;
     case "agent":
       return `[${input.type || "general"}] ${input.description || ""}`;
+    case "ask_user": {
+      const q = (input.question || "").slice(0, 60);
+      return input.options ? `${q} (${input.options.length} options)` : q;
+    }
     default:
       return "";
   }
+}
+
+// ─── Ask User: interactive question UI ──────────────────────
+
+/**
+ * Show a question with predefined options (menu selection).
+ * Always appends a "Type your own answer" option at the end so the user
+ * can provide free-form input — mirroring the permission-confirm UX.
+ *
+ * Display example:
+ *   ? Which framework should we use?
+ *     ❯ 1. React
+ *       2. Vue
+ *       3. Svelte
+ *       4. ✎ Enter custom answer
+ *
+ * Returns the user's answer string.
+ *
+ * IMPORTANT: Caller must rl.pause() BEFORE and rl.resume() AFTER.
+ */
+export async function showQuestion(
+  question: string,
+  options: string[],
+  _allowFreeText: boolean = true
+): Promise<string> {
+  console.log(C.warn("\n  ? ") + C.bold(question));
+
+  const menuOptions: MenuOption[] = options.map((opt, i) => ({
+    label: `${i + 1}. ${opt}`,
+    value: opt,
+  }));
+
+  // Always append free-text entry option
+  menuOptions.push({
+    label: `${menuOptions.length + 1}. ${C.accent("✎")} Enter custom answer`,
+    value: "__free_text__",
+  });
+
+  const choice = await showMenu("[↑/↓ + Enter]", menuOptions);
+
+  if (choice === null) {
+    return "(User cancelled)";
+  }
+
+  if (choice === "__free_text__") {
+    return showFreeTextInput("Your answer");
+  }
+
+  console.log(C.muted(`  ↳ Selected: ${choice}`));
+  return choice;
+}
+
+/**
+ * Show a free-text input prompt and wait for user input.
+ * Uses raw stdin to capture a single line (Enter to submit, Ctrl+C to cancel).
+ *
+ * Display:
+ *   ? Your answer
+ *   > _
+ *
+ * Can be called standalone (from askUserFn) or chained after showMenu
+ * (when user picks "Enter custom answer").  In either case stdin may be
+ * in any state — this function fully re-isolates it.
+ */
+export function showFreeTextInput(prompt: string): Promise<string> {
+  return new Promise((resolve) => {
+    console.log(C.warn("  ? ") + C.bold(prompt.trim()));
+    process.stdout.write(C.accent("  > "));
+
+    let buffer = "";
+    let resolved = false;
+
+    // ── Fully isolate stdin (same strategy as showMenu) ────────
+    // 1. Save + remove ALL keypress listeners so readline is deaf
+    const savedKeypressListeners = process.stdin.listeners("keypress").slice();
+    process.stdin.removeAllListeners("keypress");
+
+    // 2. Also remove any stale 'data' listeners from previous UI components
+    //    that may not have cleaned up yet (defensive)
+    const savedDataListeners = process.stdin.listeners("data").slice();
+    process.stdin.removeAllListeners("data");
+
+    // 3. Save raw mode state
+    const wasRaw = process.stdin.isRaw;
+
+    const cleanup = () => {
+      if (resolved) return;
+      resolved = true;
+      // Remove our handler
+      process.stdin.off("data", onData);
+      // Restore raw mode
+      if (process.stdin.isTTY && wasRaw !== undefined) {
+        process.stdin.setRawMode(wasRaw);
+      }
+      // Pause before restoring listeners
+      process.stdin.pause();
+      // Restore previous data listeners
+      for (const fn of savedDataListeners) {
+        process.stdin.on("data", fn as (...args: any[]) => void);
+      }
+      // Restore readline's keypress listeners
+      for (const fn of savedKeypressListeners) {
+        process.stdin.on("keypress", fn as (...args: any[]) => void);
+      }
+    };
+
+    const onData = (data: Buffer) => {
+      if (resolved) return;
+      const key = data.toString();
+
+      // Enter → submit
+      if (key === "\r" || key === "\n") {
+        process.stdout.write("\n");
+        cleanup();
+        resolve(buffer.trim() || "(empty)");
+        return;
+      }
+
+      // Ctrl+C → cancel
+      if (key === "\x03") {
+        process.stdout.write("\n");
+        cleanup();
+        resolve("(User cancelled)");
+        return;
+      }
+
+      // Escape — only if it's a bare Escape, not start of arrow key sequence
+      if (key === "\x1b") {
+        // Wait briefly to see if more bytes follow (arrow keys send \x1b[A etc.)
+        // In raw mode single Escape arrives alone; arrow keys arrive as 3-byte seq.
+        // Since we're not handling arrows in text input, just ignore escape sequences.
+        return;
+      }
+
+      // Ignore arrow key sequences and other escape sequences
+      if (key.startsWith("\x1b[")) {
+        return;
+      }
+
+      // Backspace (0x7f or 0x08)
+      if (key === "\x7f" || key === "\x08") {
+        if (buffer.length > 0) {
+          buffer = buffer.slice(0, -1);
+          process.stdout.write("\b \b");
+        }
+        return;
+      }
+
+      // Printable characters (including multi-byte UTF-8)
+      if (key.charCodeAt(0) >= 32) {
+        buffer += key;
+        process.stdout.write(key);
+      }
+    };
+
+    // 4. Enter raw mode BEFORE binding handler and resuming
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(true);
+    }
+    // 5. Bind our exclusive data handler
+    process.stdin.on("data", onData);
+    // 6. Resume stdin
+    process.stdin.resume();
+  });
 }

@@ -29,6 +29,8 @@ import {
   flushMarkdown,
   resetMarkdown,
   showMenu,
+  showQuestion,
+  showFreeTextInput,
   getTaskSpinnerLabel,
   printTaskSummary,
   clearTaskList,
@@ -68,6 +70,7 @@ interface AgentOptions {
   thinking?: boolean;
   maxTurns?: number;          // Budget: max agentic turns
   confirmFn?: (toolName: string, input: Record<string, any>) => Promise<"allow" | "deny">;
+  askUserFn?: (question: string, options?: string[], allowFreeText?: boolean) => Promise<string>;
   // Sub-agent options
   customSystemPrompt?: string;
   customTools?: ToolDef[];
@@ -111,6 +114,9 @@ export class Agent {
   // External confirmation callback (avoids creating a second readline on stdin)
   private confirmFn?: (toolName: string, input: Record<string, any>) => Promise<"allow" | "deny">;
 
+  // External ask-user callback (REPL injects interactive UI)
+  private askUserFn?: (question: string, options?: string[], allowFreeText?: boolean) => Promise<string>;
+
   // Sub-agent output buffer (captures text instead of printing)
   private outputBuffer: string[] | null = null;
 
@@ -133,6 +139,7 @@ export class Agent {
     this.tools = options.customTools || toolDefinitions;
     this.maxTurns = options.maxTurns;
     this.confirmFn = options.confirmFn;
+    this.askUserFn = options.askUserFn;
     this.effectiveWindow = getContextWindow(this._model) - 20000;
     this.sessionId = randomUUID().slice(0, 8);
     this.sessionStartTime = new Date().toISOString();
@@ -211,6 +218,10 @@ export class Agent {
 
   setConfirmFn(fn: (toolName: string, input: Record<string, any>) => Promise<"allow" | "deny">) {
     this.confirmFn = fn;
+  }
+
+  setAskUserFn(fn: (question: string, options?: string[], allowFreeText?: boolean) => Promise<string>) {
+    this.askUserFn = fn;
   }
 
   getTokenUsage() {
@@ -601,7 +612,43 @@ export class Agent {
   ): Promise<string> {
     if (name === "agent") return this.executeAgentTool(input);
     if (name === "skill") return this.executeSkillTool(input);
+    if (name === "ask_user") return this.executeAskUserTool(input);
     return executeTool(name, input);
+  }
+
+  // ─── Ask User tool ──────────────────────────────────────────
+
+  private async executeAskUserTool(input: Record<string, any>): Promise<string> {
+    const question = input.question || "No question provided";
+    const options = Array.isArray(input.options) ? input.options as string[] : undefined;
+    const allowFreeText = !!input.allow_free_text;
+
+    // Sub-agents cannot interact with user directly
+    if (this.isSubAgent) {
+      return "Error: ask_user is not available in sub-agent context.";
+    }
+
+    // Stop spinner while waiting for user input
+    this.hideSpinner();
+
+    try {
+      // Use external askUserFn if provided (REPL mode injects one)
+      if (this.askUserFn) {
+        const answer = await this.askUserFn(question, options, allowFreeText);
+        return `User's answer: ${answer}`;
+      }
+
+      // Fallback: interactive UI directly (one-shot mode, no REPL)
+      if (options && options.length > 0) {
+        const answer = await showQuestion(question, options, allowFreeText);
+        return `User's answer: ${answer}`;
+      } else {
+        const answer = await showFreeTextInput(question);
+        return `User's answer: ${answer}`;
+      }
+    } catch (e: any) {
+      return `Error asking user: ${e.message}`;
+    }
   }
 
   // ─── Skill fork mode ─────────────────────────────────────
