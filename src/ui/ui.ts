@@ -560,21 +560,83 @@ export function printInfo(msg: string) {
   console.log(C.accentDim(`\n  ● `) + C.muted(msg));
 }
 
+// ─── Task list display ──────────────────────────────────────
+//
+// Task progress is shown in two ways:
+// 1. The spinner label shows the current in_progress task:
+//      ⠋ [2/5] Refactoring model layers...
+// 2. tool results from task_create/task_update/task_list print inline
+//    (no ANSI magic, no fixed panels — just plain output).
+//
+
+import type { Task } from "../core/task-store.js";
+
+/** Build a spinner label from the current task state. */
+export function getTaskSpinnerLabel(tasks: Task[]): string | null {
+  if (tasks.length === 0) return null;
+
+  const done = tasks.filter((t) => t.status === "completed").length;
+  const total = tasks.length;
+  const current = tasks.find((t) => t.status === "in_progress");
+
+  if (current) {
+    const text = current.activeForm || current.subject;
+    return `[${done}/${total}] ${text}`;
+  }
+
+  // No in_progress task but tasks exist
+  if (done < total) {
+    return `[${done}/${total}] Thinking`;
+  }
+
+  return null;  // All done
+}
+
+/**
+ * Print a one-shot task summary (used when all tasks complete).
+ * This is plain console.log, no ANSI rewriting.
+ */
+export function printTaskSummary(tasks: Task[]): void {
+  if (tasks.length === 0) return;
+  const done = tasks.filter((t) => t.status === "completed").length;
+  const total = tasks.length;
+  console.log(C.success(`\n  ✓ Tasks: ${done}/${total} completed`));
+}
+
+/** No-op — kept for API compatibility, no panel to clear. */
+export function clearTaskList(): void {
+  // Nothing to clear; task state lives in spinner label
+}
+
+/** No-op — kept for API compatibility. */
+export function renderTaskList(_tasks: Task[]): void {
+  // Rendering is done via spinner label, not a separate panel
+}
+
 // ─── Spinner for API calls ──────────────────────────────────
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 let spinnerTimer: ReturnType<typeof setInterval> | null = null;
 let spinnerFrame = 0;
+let currentSpinnerLabel = "Thinking";
 
 export function startSpinner(label = "Thinking") {
   if (spinnerTimer) return;
+  currentSpinnerLabel = label;
   spinnerFrame = 0;
-  process.stdout.write(C.muted(`\n  ${SPINNER_FRAMES[0]} ${label}...`));
+  process.stdout.write(C.muted(`\n  ${SPINNER_FRAMES[0]} ${currentSpinnerLabel}...`));
   spinnerTimer = setInterval(() => {
     spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES.length;
-    process.stdout.write(`\r${C.muted(`  ${SPINNER_FRAMES[spinnerFrame]} ${label}...`)}`);
+    process.stdout.write(`\r\x1b[K${C.muted(`  ${SPINNER_FRAMES[spinnerFrame]} ${currentSpinnerLabel}...`)}`);
   }, 80);
+}
+
+/** Update the spinner label without restarting. No-op if spinner not running. */
+export function updateSpinnerLabel(label: string) {
+  if (!spinnerTimer) return;
+  currentSpinnerLabel = label;
+  // The next interval tick will render the new label
 }
 
 export function stopSpinner() {

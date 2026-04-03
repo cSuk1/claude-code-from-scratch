@@ -7,7 +7,7 @@ import { CommandRegistry, registerBuiltinCommands } from "./commands.js";
 import { generatePermissionRule, savePermissionRule } from "../tools/tools.js";
 
 // The prompt string — must match what readline knows about so cursor math works.
-const PROMPT = "\n" + chalk.bold.cyan("> ");
+const PROMPT = "\n" + chalk.bold.cyanBright("> ");
 
 export async function runRepl(agent: Agent) {
   // ─── Build command registry ─────────────────────────────────

@@ -252,7 +252,6 @@ const COMPOUND_COMMANDS = new Set([
   "brew", "apt", "apt-get", "yum", "dnf", "pacman",
   "systemctl", "journalctl",
 ]);
-
 export function generatePermissionRule(toolName: string, input: Record<string, any>): string {
   if (toolName === "run_shell") {
     const command = (input.command || "").trim();
@@ -273,8 +272,15 @@ export function generatePermissionRule(toolName: string, input: Record<string, a
   }
 
   if (toolName === "write_file" || toolName === "edit_file") {
-    const filePath = input.file_path || "";
-    return `${toolName}(${filePath})`;
+    // Allow all files in the project directory
+    const projectRoot = process.cwd();
+    return `${toolName}(${projectRoot}/*)`;
+  }
+
+  // For read_file, also use project-level wildcard if user triggers remember
+  if (toolName === "read_file") {
+    const projectRoot = process.cwd();
+    return `${toolName}(${projectRoot}/*)`;
   }
 
   // Generic fallback: tool name only

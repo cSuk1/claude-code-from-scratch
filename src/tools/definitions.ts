@@ -171,4 +171,69 @@ export const toolDefinitions: ToolDef[] = [
       required: ["description", "prompt"],
     },
   },
+  // ─── Task management tools ──────────────────────────────────
+  {
+    name: "task_create",
+    description:
+      "Create a task to track progress on a multi-step operation. Use this proactively when starting complex tasks with 3+ steps. The task list is displayed to the user in real-time.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        subject: {
+          type: "string",
+          description: "Brief, actionable title in imperative form (e.g. 'Fix authentication bug')",
+        },
+        description: {
+          type: "string",
+          description: "What needs to be done",
+        },
+        activeForm: {
+          type: "string",
+          description: "Present continuous form shown while in_progress (e.g. 'Fixing authentication bug'). If omitted, subject is used.",
+        },
+      },
+      required: ["subject", "description"],
+    },
+  },
+  {
+    name: "task_update",
+    description:
+      "Update a task's status or details. Set status to 'in_progress' when starting work, 'completed' when done. Set to 'deleted' to remove a task.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        taskId: {
+          type: "string",
+          description: "The ID of the task to update",
+        },
+        status: {
+          type: "string",
+          enum: ["pending", "in_progress", "completed", "deleted"],
+          description: "New status for the task",
+        },
+        subject: {
+          type: "string",
+          description: "New subject for the task",
+        },
+        description: {
+          type: "string",
+          description: "New description for the task",
+        },
+        activeForm: {
+          type: "string",
+          description: "Present continuous form shown while in_progress",
+        },
+      },
+      required: ["taskId"],
+    },
+  },
+  {
+    name: "task_list",
+    description:
+      "List all current tasks and their statuses.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
 ];

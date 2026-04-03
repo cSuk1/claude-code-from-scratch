@@ -25,13 +25,19 @@ import {
   printSubAgentEnd,
   startSpinner,
   stopSpinner,
+  updateSpinnerLabel,
   flushMarkdown,
   resetMarkdown,
   showMenu,
+  getTaskSpinnerLabel,
+  printTaskSummary,
+  clearTaskList,
 } from "../ui/ui.js";
 import { saveSession } from "../storage/session.js";
 import { buildSystemPrompt, loadPlanModePrompt } from "./prompt.js";
 import { getSubAgentConfig, BUILTIN_AGENT_TYPES, type SubAgentType } from "../extensions/subagent.js";
+import { taskStore } from "./task-store.js";
+import { setMaxListeners } from "events";
 
 import { getModelForTier, resolveSubAgentModel } from "./model-tiers.js";
 import { randomUUID } from "crypto";
@@ -92,6 +98,9 @@ export class Agent {
   // Multi-tier compression state
   private lastApiCallTime = 0;
 
+  // Task list rendering cleanup
+  private unsubscribeTaskStore?: () => void;
+
   // Abort support
   private abortController: AbortController | null = null;
 
@@ -146,6 +155,28 @@ export class Agent {
         ...(options.anthropicBaseURL ? { baseURL: options.anthropicBaseURL } : {}),
       });
     }
+
+    // When tasks change, update the spinner label to show current progress.
+    // e.g. "⠋ [2/5] Refactoring model layers..."
+    if (!this.isSubAgent) {
+      this.unsubscribeTaskStore = taskStore.onChange(() => {
+        const label = getTaskSpinnerLabel(taskStore.list());
+        if (label) updateSpinnerLabel(label);
+      });
+    }
+  }
+
+  /** Start spinner — uses task progress as label if tasks exist */
+  private showSpinner(label?: string): void {
+    if (this.isSubAgent) return;
+    const taskLabel = getTaskSpinnerLabel(taskStore.list());
+    startSpinner(taskLabel || label || "Thinking");
+  }
+
+  /** Stop spinner */
+  private hideSpinner(): void {
+    if (this.isSubAgent) return;
+    stopSpinner();
   }
 
   private resolveThinkingMode(): "adaptive" | "enabled" | "disabled" {
@@ -187,6 +218,9 @@ export class Agent {
 
   async chat(userMessage: string): Promise<void> {
     this.abortController = new AbortController();
+    // Each loop iteration adds an abort listener via the SDK stream call.
+    // Long conversations (10+ tool rounds) exceed the default limit of 10.
+    setMaxListeners(100, this.abortController.signal);
     try {
       if (this.useOpenAI) {
         await this.chatOpenAI(userMessage);
@@ -197,6 +231,11 @@ export class Agent {
       this.abortController = null;
     }
     if (!this.isSubAgent) {
+      // Print task summary if tasks were used in this turn
+      const tasks = taskStore.list();
+      if (tasks.length > 0 && tasks.every((t) => t.status === "completed")) {
+        printTaskSummary(tasks);
+      }
       printDivider();
       this.autoSave();
     }
@@ -241,6 +280,8 @@ export class Agent {
     this.totalInputTokens = 0;
     this.totalOutputTokens = 0;
     this.lastInputTokenCount = 0;
+    taskStore.clear();
+    clearTaskList();
     printInfo("Conversation cleared.");
   }
 
@@ -652,15 +693,15 @@ export class Agent {
       // Run compression pipeline before API call (tiers 1-3 are zero-cost)
       this.runCompressionPipeline();
 
-      if (!this.isSubAgent) startSpinner();
+      if (!this.isSubAgent) this.showSpinner();
       let response: Anthropic.Message;
       try {
         response = await this.callAnthropicStream();
       } catch (e) {
-        if (!this.isSubAgent) stopSpinner();
+        if (!this.isSubAgent) this.hideSpinner();
         throw e;
       }
-      if (!this.isSubAgent) stopSpinner();
+      if (!this.isSubAgent) this.hideSpinner();
       this.lastApiCallTime = Date.now();
       this.totalInputTokens += response.usage.input_tokens;
       this.totalOutputTokens += response.usage.output_tokens;
@@ -812,15 +853,15 @@ export class Agent {
       // Run compression pipeline before API call
       this.runCompressionPipeline();
 
-      if (!this.isSubAgent) startSpinner();
+      if (!this.isSubAgent) this.showSpinner();
       let response: OpenAI.ChatCompletion;
       try {
         response = await this.callOpenAIStream();
       } catch (e) {
-        if (!this.isSubAgent) stopSpinner();
+        if (!this.isSubAgent) this.hideSpinner();
         throw e;
       }
-      if (!this.isSubAgent) stopSpinner();
+      if (!this.isSubAgent) this.hideSpinner();
       this.lastApiCallTime = Date.now();
 
       // Track tokens

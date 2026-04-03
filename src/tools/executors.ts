@@ -3,6 +3,7 @@ import { execSync, execFileSync } from "child_process";
 import { glob } from "glob";
 import { dirname, join } from "path";
 import { getMemoryDir } from "../storage/memory.js";
+import { taskStore } from "../core/task-store.js";
 
 const isWin = process.platform === "win32";
 const FILE_PREVIEW_LINES = 30;
@@ -254,6 +255,54 @@ function runShell(input: { command: string; timeout?: number }): string {
   }
 }
 
+// ─── Task management handlers ───────────────────────────────
+
+function taskCreate(input: { subject: string; description: string; activeForm?: string }): string {
+  const task = taskStore.create(input.subject, input.description, input.activeForm);
+  return `Task #${task.id} created: ${task.subject}`;
+}
+
+function taskUpdate(input: {
+  taskId: string;
+  status?: string;
+  subject?: string;
+  description?: string;
+  activeForm?: string;
+}): string {
+  const updated = taskStore.update(input.taskId, {
+    status: input.status as any,
+    subject: input.subject,
+    description: input.description,
+    activeForm: input.activeForm,
+  });
+
+  if (input.status === "deleted") {
+    return `Task #${input.taskId} deleted.`;
+  }
+  if (!updated) {
+    return `Error: Task #${input.taskId} not found.`;
+  }
+
+  const changes: string[] = [];
+  if (input.status) changes.push(`status → ${input.status}`);
+  if (input.subject) changes.push(`subject updated`);
+  if (input.description) changes.push(`description updated`);
+  if (input.activeForm) changes.push(`activeForm updated`);
+  return `Task #${updated.id} updated: ${changes.join(", ") || "no changes"}`;
+}
+
+function taskList(): string {
+  const tasks = taskStore.list();
+  if (tasks.length === 0) return "No tasks.";
+
+  const lines: string[] = [];
+  for (const t of tasks) {
+    const icon = t.status === "completed" ? "✓" : t.status === "in_progress" ? "⟳" : "○";
+    lines.push(`${icon} #${t.id} [${t.status}] ${t.subject}`);
+  }
+  return lines.join("\n");
+}
+
 const handlers: Record<string, ToolHandler> = {
   read_file: (input) => readFile(input as { file_path: string }),
   write_file: (input) => writeFile(input as { file_path: string; content: string }),
@@ -261,6 +310,9 @@ const handlers: Record<string, ToolHandler> = {
   list_files: (input) => listFiles(input as { pattern: string; path?: string }),
   grep_search: (input) => grepSearch(input as { pattern: string; path?: string; include?: string }),
   run_shell: (input) => runShell(input as { command: string; timeout?: number }),
+  task_create: (input) => taskCreate(input as { subject: string; description: string; activeForm?: string }),
+  task_update: (input) => taskUpdate(input as { taskId: string; status?: string; subject?: string; description?: string; activeForm?: string }),
+  task_list: () => taskList(),
 };
 
 export async function executeToolHandler(name: string, input: ToolInput): Promise<string> {
