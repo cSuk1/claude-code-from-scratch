@@ -23,7 +23,8 @@
       "write_file(/Users/caixing/go/claude-code-mini/.ccmini/agents/AGENT.md)",
       "write_file(/Users/caixing/go/claude-code-mini/.ccmini/agents/code-reviewer.md)",
       "run_shell(git push*)",
-      "write_file(/Users/caixing/go/claude-code-mini/doc/ARCHITECTURE.md)"
+      "write_file(/Users/caixing/go/claude-code-mini/doc/ARCHITECTURE.md)",
+      "run_shell(git remote*)"
     ],
     "deny": []
   }
