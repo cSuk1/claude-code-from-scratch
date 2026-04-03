@@ -4,7 +4,6 @@ import chalk from "chalk";
 import { toolDefinitions, executeTool, checkPermission, type ToolDef, type PermissionMode } from "../tools/tools.js";
 import { getContextWindow, isInternalModel, modelSupportsAdaptiveThinking, modelSupportsThinking, getMaxOutputTokens } from "./agent-model.js";
 import { withRetry } from "./agent-retry.js";
-import { toOpenAITools } from "./agent-openai-tools.js";
 import {
   KEEP_RECENT_RESULTS,
   MICROCOMPACT_IDLE_MS,
@@ -31,10 +30,23 @@ import {
   resetMarkdown,
 } from "../ui/ui.js";
 import { saveSession } from "../storage/session.js";
-import { buildSystemPrompt } from "./prompt.js";
+import { buildSystemPrompt, loadPlanModePrompt } from "./prompt.js";
 import { getSubAgentConfig, type SubAgentType } from "../extensions/subagent.js";
 import * as readline from "readline";
 import { randomUUID } from "crypto";
+
+// ─── OpenAI tool format adapter ─────────────────────────────
+
+function toOpenAITools(tools: ToolDef[]): OpenAI.ChatCompletionTool[] {
+  return tools.map((tool) => ({
+    type: "function" as const,
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.input_schema as Record<string, unknown>,
+    },
+  }));
+}
 
 // ─── Agent ───────────────────────────────────────────────────
 
@@ -117,11 +129,11 @@ export class Agent {
     this.sessionStartTime = new Date().toISOString();
 
     // Build system prompt (with plan mode injection if needed)
-    let sysPrompt = options.customSystemPrompt || buildSystemPrompt();
-    if (this.permissionMode === "plan") {
-      sysPrompt += "\n\n# Plan Mode Active\nYou are in PLAN mode. Describe what changes you would make, but do NOT execute any write operations (write_file, edit_file, or destructive shell commands). Only use read-only tools to analyze the codebase.";
-    }
-    this.systemPrompt = sysPrompt;
+   let sysPrompt = options.customSystemPrompt || buildSystemPrompt();
+   if (this.permissionMode === "plan") {
+      sysPrompt += "\n\n" + loadPlanModePrompt();
+   }
+   this.systemPrompt = sysPrompt;
 
     if (this.useOpenAI) {
       this.openaiClient = new OpenAI({

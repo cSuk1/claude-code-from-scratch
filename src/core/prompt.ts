@@ -74,3 +74,10 @@ export function buildSystemPrompt(): string {
     .split("{{skills}}").join(skillsSection)
     .split("{{agents}}").join(agentSection);
 }
+
+// ─── Plan mode prompt loader ─────────────────────────────────
+
+export function loadPlanModePrompt(): string {
+  const __dirname = fileURLToPath(new URL(".", import.meta.url));
+  return readFileSync(join(__dirname, "../templates/plan-mode-prompt.md"), "utf-8").trim();
+}
