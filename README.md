@@ -1,4 +1,4 @@
-# Claude Code From Scratch
+# Claude Code Mini
 
 [English](README_EN.md) | 简体中文
 
