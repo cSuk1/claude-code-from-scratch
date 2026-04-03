@@ -648,7 +648,6 @@ export class Agent {
     const taskType = taskTypeMap[type] || "sub-agent-general";
     
     const subAgent = new Agent({
-      model: this.model, // Inherit from parent for now, will use task-based selection
       apiKey: this.anthropicClient
         ? undefined  // Anthropic SDK reads from env
         : undefined,
@@ -656,7 +655,7 @@ export class Agent {
       customSystemPrompt: config.systemPrompt,
       customTools: config.tools,
       isSubAgent: true,
-      taskType: taskType, // Set task type for model selection
+      taskType: taskType, // Model selection based on task type
       permissionMode: "bypassPermissions", // Sub-agents don't need confirmation
     });
 
