@@ -29,6 +29,7 @@ Options:
   --help, -h          Show this help
 
 REPL commands:
+  /help               Show all available commands
   /clear              Clear conversation history
   /cost               Show token usage and cost
   /compact            Manually compact conversation
@@ -36,6 +37,8 @@ REPL commands:
   /memory             List saved memories
   /skills             List available skills
   /<skill-name>       Invoke a skill (e.g. /commit "fix types")
+
+  Tip: Type / then press Tab to see all available commands.
 
 Examples:
   claude-code-mini "fix the bug in src/app.ts"
