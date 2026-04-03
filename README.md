@@ -10,7 +10,7 @@
 
 - **双后端支持**：Anthropic Claude（原生）+ 任意 OpenAI 兼容 API
 - **三层模型架构**：pro / lite / mini 三级模型，自动路由 sub-agent 到低成本模型
-- **7 个内置工具**：read_file、write_file、edit_file、list_files、grep_search、run_shell、skill
+- **13 个内置工具**：read_file、write_file、edit_file、list_files、grep_search、run_shell、skill、agent、task_create、task_update、task_list、web_search、ask_user
 - **4 种内置代理**：explore（只读探索）、plan（规划）、general（全功能）、compact（压缩）
 - **自定义扩展**：通过 `.ccmini/agents/` 和 `.ccmini/skills/` 定义专属代理和技能
 - **4 层上下文压缩**：budget → snip → microcompact → auto-compact
@@ -19,6 +19,7 @@
 - **记忆系统**：按项目存储 user / feedback / project / reference 四类记忆
 - **Tab 补全**：REPL 中支持命令和技能的 Tab 补全
 - **扩展思考**：支持 Claude 4.6 的 adaptive thinking
+- **任务追踪**：内置任务系统，支持创建、更新、列出任务
 
 ## 快速开始
 
@@ -268,6 +269,7 @@ claude-code-mini --resume
 - `openai` — OpenAI API 客户端
 - `chalk` — 终端颜色
 - `glob` — 文件模式匹配
+- `duck-duck-scrape` — DuckDuckGo 网页搜索
 
 ## 许可证
 

@@ -34,7 +34,7 @@ A minimal TypeScript CLI agent (~3900 lines) that mirrors Claude Code's core arc
 |------|-------|-------------|
 | **`src/core/agent.ts`** | ~1050 | Heart of the system. Orchestrates chat loop, tool execution, token tracking, context compression, sub-agent forking. Maintains dual message histories for Anthropic/OpenAI. |
 | **`src/ui/ui.ts`** | ~530 | Terminal UI: colors, spinners, Markdown rendering, progress display |
-| **`src/tools/executors.ts`** | ~270 | Concrete implementations for all 7 built-in tools |
+| **`src/tools/executors.ts`** | ~300 | Concrete implementations for all 9 built-in tools |
 | **`src/extensions/subagent.ts`** | ~225 | Sub-agent system: 4 built-in types (explore, plan, general, compact) + custom agent discovery |
 | **`src/core/model-tiers.ts`** | ~225 | Three-tier model hierarchy (pro/lite/mini) with priority chain configuration |
 | **`src/storage/memory.ts`** | ~205 | Per-project memory system (user/feedback/project/reference) |
