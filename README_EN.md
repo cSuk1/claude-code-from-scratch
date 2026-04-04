@@ -1,4 +1,4 @@
-# Claude Code Mini
+# Claude Code Mini v2.0
 
 English | [简体中文](README.md)
 
@@ -13,7 +13,7 @@ A minimal AI coding agent built from scratch in TypeScript, inspired by [Claude 
 - **7 built-in tools**: read_file, write_file, edit_file, list_files, grep_search, run_shell, skill
 - **4 built-in agents**: explore (read-only), plan (analysis), general (full tools), compact (summarization)
 - **Custom extensions**: Define agents and skills via `.ccmini/agents/` and `.ccmini/skills/`
-- **4-tier context compression**: budget → snip → microcompact → auto-compact
+- **3-tier context compression**: budget → snip → microcompact
 - **5 permission modes**: default / plan / acceptEdits / bypassPermissions / dontAsk
 - **Session persistence**: Auto-saves conversations, `--resume` to restore
 - **Memory system**: Per-project storage with 4 types — user / feedback / project / reference
@@ -106,28 +106,36 @@ src/
 │   ├── config.ts             # API config resolution
 │   └── repl.ts               # Interactive REPL loop
 ├── core/
-│   ├── agent.ts              # Core Agent class (~1050 lines)
-│   ├── agent-compression.ts  # Context compression pipeline
+│   ├── agent.ts              # Core Agent class (~450 lines)
+│   ├── compress.ts           # Context compression pipeline
 │   ├── agent-model.ts        # Model switch logic
 │   ├── agent-retry.ts        # API retry logic
 │   ├── model-tiers.ts        # Three-tier model system
 │   └── prompt.ts             # System prompt builder
+├── backend/                  # Backend abstraction layer (new)
+│   ├── backend-types.ts      # MessageHandler interface
+│   ├── anthropic-backend.ts  # Anthropic backend implementation
+│   ├── openai-backend.ts     # OpenAI backend implementation
+│   └── index.ts              # Module exports
 ├── tools/
 │   ├── definitions.ts        # Tool definitions (Anthropic format)
 │   ├── dispatcher.ts         # Tool dispatch
 │   ├── executors.ts          # Tool implementations
 │   ├── permissions.ts        # Permission checks
 │   └── tools.ts              # Module exports
-├── ui/
-│   └── ui.ts                 # Terminal UI
+├── ui/                       # UI module (refactored)
+│   ├── colors.ts             # Color constants
+│   ├── spinner.ts            # Loading animation
+│   ├── markdown.ts           # Markdown rendering
+│   ├── menu.ts               # Interactive menus
+│   ├── output.ts             # Output functions
+│   └── index.ts              # Module exports
 ├── storage/
 │   ├── session.ts            # Session persistence
 │   └── memory.ts             # Memory system
 ├── extensions/
 │   ├── skills.ts             # Skill discovery and execution
 │   └── subagent.ts           # Sub-agent system
-├── utils/
-│   └── frontmatter.ts        # YAML frontmatter parser
 └── templates/
     ├── system-prompt.md      # System prompt template
     └── plan-mode-prompt.md   # Plan mode template
@@ -151,21 +159,34 @@ cli.ts → parseArgs() → resolveApiConfig() → new Agent() → chat() or runR
 ### Agent Core Loop
 
 ```
-User input → Compression pipeline → API call → Parse response
-                                                       ├── Text → Print to terminal
-                                                       └── Tool call → Permission check → Execute → Add result to history → Continue loop
+User input → Compression pipeline → Backend abstraction → API call → Parse response
+                                                                    ├── Text → Print to terminal
+                                                                    └── Tool call → Permission check → Execute → Add result to history → Continue loop
 ```
+
+### Backend Abstraction Layer
+
+v2.0 introduces a unified backend abstraction layer, decoupling Agent core from specific API implementations via the `MessageHandler` interface:
+
+| Component | Description |
+|-----------|-------------|
+| `MessageHandler` | Unified backend interface for message management and streaming |
+| `AnthropicBackend` | Anthropic API implementation |
+| `OpenAIBackend` | OpenAI-compatible API implementation |
+
+To add a new backend, simply implement the `MessageHandler` interface without modifying Agent core code.
 
 ### Context Compression Pipeline
 
-A 4-tier progressive compression pipeline runs before each API call (first 3 tiers are zero API cost):
+A 3-tier progressive compression pipeline runs before each API call (zero API cost, local operations):
 
 | Tier | Name | Trigger | Strategy |
 |------|------|---------|----------|
 | 1 | Budget | Context utilization > 50% | Truncate large tool results, keeping head and tail |
 | 2 | Snip | Utilization exceeds threshold | Replace stale/duplicate tool results with placeholder |
 | 3 | Microcompact | Idle for > 5 minutes | Aggressively clear old results (prompt cache is cold) |
-| 4 | Auto-compact | Utilization > 85% | Summarize the entire conversation via API call |
+
+> Note: When utilization > 85%, an API call is made for full conversation summarization.
 
 ## Extension System
 

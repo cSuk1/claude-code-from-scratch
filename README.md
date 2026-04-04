@@ -1,4 +1,4 @@
-# Claude Code Mini
+# Claude Code Mini v2.0
 
 [English](README_EN.md) | 简体中文
 
@@ -13,7 +13,7 @@
 - **13 个内置工具**：read_file、write_file、edit_file、list_files、grep_search、run_shell、skill、agent、task_create、task_update、task_list、web_search、ask_user
 - **4 种内置代理**：explore（只读探索）、plan（规划）、general（全功能）、compact（压缩）
 - **自定义扩展**：通过 `.ccmini/agents/` 和 `.ccmini/skills/` 定义专属代理和技能
-- **4 层上下文压缩**：budget → snip → microcompact → auto-compact
+- **3 层上下文压缩**：budget → snip → microcompact
 - **5 种权限模式**：default / plan / acceptEdits / bypassPermissions / dontAsk
 - **会话持久化**：自动保存对话，`--resume` 恢复上次会话
 - **记忆系统**：按项目存储 user / feedback / project / reference 四类记忆
@@ -107,28 +107,36 @@ src/
 │   ├── config.ts             # API 配置解析
 │   └── repl.ts               # REPL 交互循环
 ├── core/
-│   ├── agent.ts              # Agent 核心类（~1050 行）
-│   ├── agent-compression.ts  # 上下文压缩管线
+│   ├── agent.ts              # Agent 核心类（~450 行）
+│   ├── compress.ts           # 上下文压缩管线
 │   ├── agent-model.ts        # 模型切换逻辑
 │   ├── agent-retry.ts        # API 重试逻辑
 │   ├── model-tiers.ts        # 三层模型系统
 │   └── prompt.ts             # 系统提示词构建
+├── backend/                  # 后端抽象层（新增）
+│   ├── backend-types.ts      # MessageHandler 接口定义
+│   ├── anthropic-backend.ts  # Anthropic 后端实现
+│   ├── openai-backend.ts     # OpenAI 后端实现
+│   └── index.ts              # 模块导出
 ├── tools/
 │   ├── definitions.ts        # 工具定义（Anthropic 格式）
 │   ├── dispatcher.ts         # 工具调度
 │   ├── executors.ts          # 工具实现
 │   ├── permissions.ts        # 权限检查
 │   └── tools.ts              # 模块导出
-├── ui/
-│   └── ui.ts                 # 终端 UI
+├── ui/                       # UI 模块（重构）
+│   ├── colors.ts             # 颜色常量
+│   ├── spinner.ts            # 加载动画
+│   ├── markdown.ts           # Markdown 渲染
+│   ├── menu.ts               # 交互式菜单
+│   ├── output.ts             # 输出函数
+│   └── index.ts              # 模块导出
 ├── storage/
 │   ├── session.ts            # 会话持久化
 │   └── memory.ts             # 记忆系统
 ├── extensions/
 │   ├── skills.ts             # 技能发现与执行
 │   └── subagent.ts           # 子代理系统
-├── utils/
-│   └── frontmatter.ts        # YAML frontmatter 解析
 └── templates/
     ├── system-prompt.md      # 系统提示词模板
     └── plan-mode-prompt.md   # Plan 模式模板
@@ -152,21 +160,34 @@ cli.ts → parseArgs() → resolveApiConfig() → new Agent() → chat() 或 run
 ### Agent 核心循环
 
 ```
-用户输入 → 压缩管线 → API 调用 → 解析响应
-                              ├── 文本 → 输出到终端
-                              └── 工具调用 → 权限检查 → 执行 → 结果入历史 → 继续循环
+用户输入 → 压缩管线 → 后端抽象层 → API 调用 → 解析响应
+                                              ├── 文本 → 输出到终端
+                                              └── 工具调用 → 权限检查 → 执行 → 结果入历史 → 继续循环
 ```
+
+### 后端抽象层
+
+v2.0 引入了统一的后端抽象层，通过 `MessageHandler` 接口解耦 Agent 核心与具体 API 实现：
+
+| 组件 | 说明 |
+|------|------|
+| `MessageHandler` | 后端统一接口，定义消息管理和流式调用 |
+| `AnthropicBackend` | Anthropic API 实现 |
+| `OpenAIBackend` | OpenAI 兼容 API 实现 |
+
+新增后端只需实现 `MessageHandler` 接口，无需修改 Agent 核心代码。
 
 ### 上下文压缩管线
 
-每次 API 调用前执行 4 层渐进式压缩（前 3 层零 API 消耗）：
+每次 API 调用前执行 3 层渐进式压缩（零 API 消耗的本地操作）：
 
 | 层级 | 名称 | 触发条件 | 策略 |
 |------|------|----------|------|
 | 1 | Budget | 上下文利用率 > 50% | 截断大的工具结果，保留头尾 |
 | 2 | Snip | 利用率超过阈值 | 用占位符替换旧的/重复的工具结果 |
 | 3 | Microcompact | 空闲超过 5 分钟 | 激进清除旧结果（prompt cache 已冷） |
-| 4 | Auto-compact | 利用率 > 85% | 调用 API 对整段对话进行摘要压缩 |
+
+> 注：当利用率 > 85% 时，会调用 API 进行完整的对话摘要压缩。
 
 ## 扩展系统
 
