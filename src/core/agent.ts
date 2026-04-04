@@ -788,45 +788,62 @@ export class Agent {
 
       for (const toolUse of toolUses) {
         if (this.abortController?.signal.aborted) break;
-        const input = toolUse.input as Record<string, any>;
-        printToolCall(toolUse.name, input);
-
-        // Permission check (mode-aware)
-        const perm = checkPermission(toolUse.name, input, this.permissionMode);
-        if (perm.action === "deny") {
-          printInfo(`Denied: ${perm.message}`);
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: toolUse.id,
-            content: `Action denied: ${perm.message}`,
-          });
-          continue;
+        const toolResult = await this.executeAnthropicToolCallWithPermissions(toolUse);
+        if (toolResult) {
+          toolResults.push(toolResult);
         }
-        if (perm.action === "confirm" && perm.message && !this.confirmedPaths.has(perm.message)) {
-          const choice = await this.confirmDangerous(toolUse.name, input, perm.message);
-          if (choice === "deny") {
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: toolUse.id,
-              content: "User denied this action.",
-            });
-            continue;
-          }
-          this.confirmedPaths.add(perm.message);
-        }
-
-        const result = await this.executeToolCall(toolUse.name, input);
-        printToolResult(toolUse.name, result);
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: result,
-        });
       }
 
       this.anthropicMessages.push({ role: "user", content: toolResults });
       await this.checkAndCompact();
     }
+  }
+
+  /**
+   * Execute a single Anthropic tool call with permission checks
+   */
+  private async executeAnthropicToolCallWithPermissions(toolUse: any): Promise<Anthropic.ToolResultBlockParam | undefined> {
+    const input = toolUse.input as Record<string, any>;
+    const permissionResult = await this.checkToolPermission(toolUse.name, input);
+    
+    if (permissionResult.denied) {
+      return {
+        type: "tool_result",
+        tool_use_id: toolUse.id,
+        content: permissionResult.message,
+      };
+    }
+
+    const result = await this.executeToolCall(toolUse.name, input);
+    printToolResult(toolUse.name, result);
+    return {
+      type: "tool_result",
+      tool_use_id: toolUse.id,
+      content: result,
+    };
+  }
+
+  /**
+   * Check tool permission and handle user confirmation
+   */
+  private async checkToolPermission(toolName: string, input: Record<string, any>): Promise<{ denied: boolean; message: string }> {
+    printToolCall(toolName, input);
+
+    // Permission check (mode-aware)
+    const perm = checkPermission(toolName, input, this.permissionMode);
+    if (perm.action === "deny") {
+      printInfo(`Denied: ${perm.message}`);
+      return { denied: true, message: `Action denied: ${perm.message}` };
+    }
+    if (perm.action === "confirm" && perm.message && !this.confirmedPaths.has(perm.message)) {
+      const choice = await this.confirmDangerous(toolName, input, perm.message);
+      if (choice === "deny") {
+        return { denied: true, message: "User denied this action." };
+      }
+      this.confirmedPaths.add(perm.message);
+    }
+
+    return { denied: false, message: "" };
   }
 
   private async callAnthropicStream(): Promise<Anthropic.Message> {
@@ -967,30 +984,15 @@ export class Agent {
       input = {};
     }
 
-    printToolCall(fnName, input);
-
-    // Permission check (mode-aware)
-    const perm = checkPermission(fnName, input, this.permissionMode);
-    if (perm.action === "deny") {
-      printInfo(`Denied: ${perm.message}`);
+    const permissionResult = await this.checkToolPermission(fnName, input);
+    
+    if (permissionResult.denied) {
       this.openaiMessages.push({
         role: "tool",
         tool_call_id: tc.id,
-        content: `Action denied: ${perm.message}`,
+        content: permissionResult.message,
       });
       return;
-    }
-    if (perm.action === "confirm" && perm.message && !this.confirmedPaths.has(perm.message)) {
-      const choice = await this.confirmDangerous(fnName, input, perm.message);
-      if (choice === "deny") {
-        this.openaiMessages.push({
-          role: "tool",
-          tool_call_id: tc.id,
-          content: "User denied this action.",
-        });
-        return;
-      }
-      this.confirmedPaths.add(perm.message);
     }
 
     const result = await this.executeToolCall(fnName, input);
