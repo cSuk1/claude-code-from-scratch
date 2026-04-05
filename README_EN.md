@@ -21,6 +21,7 @@ A minimal AI coding agent built from scratch in TypeScript, inspired by [Claude 
 - **Tab completion**: Commands and skills in REPL
 - **Extended thinking**: Supports Claude 4.6 adaptive thinking
 - **Task tracking**: Built-in task system for creating, updating, and listing tasks
+- **Complete test coverage**: Vitest unit test framework, 207 test cases covering core modules
 
 ## Quick Start
 
@@ -61,6 +62,7 @@ Options:
   --model, -m MODEL   Specify model
   --api-base URL      Use an OpenAI-compatible endpoint
   --resume            Resume the last session
+  --connect           Interactively connect to API provider and save config
   --max-cost USD      Cost ceiling in USD
   --max-turns N       Maximum number of agentic turns
   --help, -h          Show help
@@ -79,6 +81,7 @@ Available in interactive mode:
 | `/compact` | Manually compact the conversation |
 | `/memory` | List saved memories |
 | `/skills` | List available skills |
+| `/connect` | Interactively connect to API provider (type, URL, key, model) |
 | `/<skill-name> [args]` | Invoke a skill |
 
 Tab completion supported for commands and skill names.
@@ -247,6 +250,12 @@ Configure in `.ccmini/settings.json`:
 }
 ```
 
+You can also use the `/connect` command to configure interactively. It will guide you through:
+1. Provider type (Anthropic / OpenAI-compatible)
+2. Base URL (optional for Anthropic, required for others)
+3. API Key
+4. Pro / Lite / Mini model names
+
 ## Environment Variables
 
 | Variable | Description |
@@ -292,6 +301,23 @@ claude-code-mini --resume
 - `chalk` — Terminal colors
 - `glob` — File pattern matching
 - `duck-duck-scrape` — DuckDuckGo web search
+- `vitest` — Unit testing framework
+- `@vitest/coverage-v8` — Test coverage
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
+
+Currently covered: tool definitions, permissions, model tiers, context compression, memory system, CLI args, etc.
 
 ## License
 

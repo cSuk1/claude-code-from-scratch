@@ -21,6 +21,7 @@
 - **Tab 补全**：REPL 中支持命令和技能的 Tab 补全
 - **扩展思考**：支持 Claude 4.6 的 adaptive thinking
 - **任务追踪**：内置任务系统，支持创建、更新、列出任务
+- **完整测试覆盖**：Vitest 单元测试框架，207 个测试用例，覆盖核心模块
 
 ## 快速开始
 
@@ -61,6 +62,7 @@ npm run dev
   --model, -m MODEL   指定模型
   --api-base URL      使用 OpenAI 兼容端点
   --resume            恢复上次会话
+  --connect           交互式连接 API 提供商并保存配置
   --max-cost USD      费用上限（美元）
   --max-turns N       最大轮次限制
   --help, -h          显示帮助
@@ -79,6 +81,7 @@ npm run dev
 | `/compact` | 手动压缩对话 |
 | `/memory` | 列出已保存的记忆 |
 | `/skills` | 列出可用技能 |
+| `/connect` | 交互式连接 API 提供商（类型、URL、Key、模型） |
 | `/<技能名> [参数]` | 调用技能 |
 
 支持 Tab 补全命令和技能名称。
@@ -252,6 +255,12 @@ mode: inline
 }
 ```
 
+也可以通过 `/connect` 命令交互式配置，程序会引导你输入：
+1. 提供商类型（Anthropic / OpenAI 兼容）
+2. Base URL（Anthropic 可选，其他必填）
+3. API Key
+4. Pro / Lite / Mini 模型名称
+
 **优先级**：命令行参数 > 环境变量 > 配置文件
 
 ## 环境变量
@@ -299,6 +308,23 @@ claude-code-mini --resume
 - `chalk` — 终端颜色
 - `glob` — 文件模式匹配
 - `duck-duck-scrape` — DuckDuckGo 网页搜索
+- `vitest` — 单元测试框架
+- `@vitest/coverage-v8` — 测试覆盖率
+
+## 测试
+
+```bash
+# 运行所有测试
+npm test
+
+# 监听模式
+npm run test:watch
+
+# 生成覆盖率报告
+npm run test:coverage
+```
+
+当前覆盖模块：工具定义、权限检查、模型分层、上下文压缩、记忆系统、CLI 参数等。
 
 ## 许可证
 
