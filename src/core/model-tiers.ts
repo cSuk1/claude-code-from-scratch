@@ -75,11 +75,7 @@ export function initModelTiers(): void {
   if (initialized) return;
   initialized = true;
 
-  // Layer 1: config file (lowest priority override)
   loadFromConfigFiles();
-
-  // Layer 2: environment variables (higher priority)
-  loadFromEnv();
 }
 
 function loadFromConfigFiles(): void {
@@ -102,27 +98,6 @@ function loadFromConfigFiles(): void {
     } catch {
       // Ignore malformed config
     }
-  }
-}
-
-function loadFromEnv(): void {
-  const envMap: Record<ModelTier, string> = {
-    pro:  "MINI_CLAUDE_MODEL_PRO",
-    lite: "MINI_CLAUDE_MODEL_LITE",
-    mini: "MINI_CLAUDE_MODEL_MINI",
-  };
-
-  for (const tier of ["pro", "lite", "mini"] as ModelTier[]) {
-    const val = process.env[envMap[tier]];
-    if (val) {
-      tiers[tier] = { model: val, source: "env" };
-    }
-  }
-
-  // Legacy: MINI_CLAUDE_MODEL overrides pro tier
-  const legacy = process.env.MINI_CLAUDE_MODEL;
-  if (legacy) {
-    tiers.pro = { model: legacy, source: "env" };
   }
 }
 

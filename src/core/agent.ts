@@ -216,6 +216,7 @@ export class Agent {
       let toolCalls: StreamResult["toolCalls"] = [];
       let inputTokens = 0;
       let outputTokens = 0;
+      let rawAssistantContent: unknown[] | undefined;
 
       // stream parallel tool calls(only for parallel safe tools)
       const parallelPromises = new Map<string, Promise<ToolResultEntry | null>>();
@@ -249,6 +250,9 @@ export class Agent {
             // update the token usage
             inputTokens = chunk.usage.inputTokens;
             outputTokens = chunk.usage.outputTokens;
+          }
+          if (chunk.rawAssistantContent) {
+            rawAssistantContent = chunk.rawAssistantContent;
           }
         }
       } catch (e: any) {
@@ -297,7 +301,7 @@ export class Agent {
 
       if (!this.isSubAgent) this.printToolResultsInOrder(toolCalls, toolResults);
 
-      this.backend.addToolRound({ content, toolCalls, usage: { inputTokens, outputTokens } }, toolResults);
+      this.backend.addToolRound({ content, toolCalls, usage: { inputTokens, outputTokens }, rawAssistantContent }, toolResults);
     }
   }
 

@@ -32,7 +32,10 @@ A minimal TypeScript CLI agent (~3900 lines) that mirrors Claude Code's core arc
 
 | File | Lines | Description |
 |------|-------|-------------|
-| **`src/core/agent.ts`** | ~1050 | Heart of the system. Orchestrates chat loop, tool execution, token tracking, context compression, sub-agent forking. Maintains dual message histories for Anthropic/OpenAI. |
+| **`src/core/agent.ts`** | ~600 | Heart of the system. Orchestrates chat loop, streaming tool execution, token tracking, context compression, sub-agent forking. Delegates to MessageHandler backends. |
+| **`src/backend/anthropic-backend.ts`** | ~285 | Anthropic backend: SSE event-based real-time streaming with immediate tool call yield |
+| **`src/backend/openai-backend.ts`** | ~205 | OpenAI backend: incremental delta streaming with pending tool accumulation |
+| **`src/backend/backend-types.ts`** | ~60 | MessageHandler interface, StreamChunk/StreamResult types |
 | **`src/ui/ui.ts`** | ~530 | Terminal UI: colors, spinners, Markdown rendering, progress display |
 | **`src/tools/executors.ts`** | ~300 | Concrete implementations for all 9 built-in tools |
 | **`src/extensions/subagent.ts`** | ~225 | Sub-agent system: 4 built-in types (explore, plan, general, compact) + custom agent discovery |
@@ -62,6 +65,11 @@ src/
 │   ├── agent-retry.ts        # API retry with backoff
 │   ├── model-tiers.ts        # Three-tier model system
 │   └── prompt.ts             # System prompt builder
+├── backend/
+│   ├── backend-types.ts      # MessageHandler interface, StreamChunk/StreamResult
+│   ├── anthropic-backend.ts  # Anthropic: SSE event-based real-time streaming
+│   ├── openai-backend.ts     # OpenAI: incremental delta streaming
+│   └── index.ts              # Module exports
 ├── tools/
 │   ├── definitions.ts        # Tool definitions (Anthropic format)
 │   ├── dispatcher.ts         # Tool dispatch and execution
@@ -141,6 +149,23 @@ Agent type → tier routing:
 - `general` → pro
 - `compact` → mini
 
+### Streaming Architecture
+
+Both backends implement `streamChunk()` as an `AsyncGenerator<StreamChunk>` that yields chunks in real-time:
+
+**Anthropic** (`anthropic-backend.ts`): Iterates `MessageStream` SSE events directly:
+- `content_block_start` → detect block type (text / tool_use / thinking)
+- `content_block_delta` → yield text immediately, accumulate tool JSON args
+- `content_block_stop` → yield completed `toolCall`, push to `rawAssistantContent`
+- After iteration: `finalMessage()` for usage stats
+
+**OpenAI** (`openai-backend.ts`): Iterates streamed deltas with `pendingTools` map:
+- `delta.content` → yield text immediately
+- `delta.tool_calls` → accumulate args by index, yield on index change
+- After stream: flush remaining pending tools
+
+**Consumer** (`agent.ts` `chatLoop`): Iterates `streamChunk()` and starts parallel-safe tool execution (`isParallelSafe && isIdempotent`) as soon as each `toolCall` arrives, without waiting for the full response.
+
 ### REPL Commands
 
 | Command | Description |
@@ -159,5 +184,6 @@ Tab completion supported for commands and skills.
 
 - All source uses ESM imports with explicit `.js` extensions (required by Node ESM resolution).
 - Tool definitions follow Anthropic's `input_schema` format as the canonical form.
-- The `Agent` class has parallel method pairs for both backends (e.g., `chatAnthropic()`/`chatOpenAI()`).
+- The `Agent` class delegates to `MessageHandler` backends (AnthropicBackend / OpenAIBackend) for all API communication.
+- Both backends implement true streaming via `streamChunk()` async generator — text yields in real-time, tool calls yield on content block completion.
 - Config directory is `.ccmini/` (skills, agents, settings).

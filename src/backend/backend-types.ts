@@ -15,6 +15,7 @@ export interface StreamChunk {
     arguments: string;
   };
   usage?: { inputTokens: number; outputTokens: number };
+  rawAssistantContent?: unknown[];
   done?: boolean;
 }
 

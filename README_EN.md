@@ -9,8 +9,9 @@ A minimal AI coding agent built from scratch in TypeScript, inspired by [Claude 
 ## Features
 
 - **Dual backend support**: Anthropic Claude (native) + any OpenAI-compatible API
+- **Real-time streaming**: Both backends use true streaming — text outputs in real-time, tool calls yield immediately on completion for parallel execution
 - **Three-tier model system**: pro / lite / mini levels with automatic sub-agent routing to cost-effective models
-- **7 built-in tools**: read_file, write_file, edit_file, list_files, grep_search, run_shell, skill
+- **13 built-in tools**: read_file, write_file, edit_file, list_files, grep_search, run_shell, skill, agent, task_create, task_update, task_list, web_search, ask_user
 - **4 built-in agents**: explore (read-only), plan (analysis), general (full tools), compact (summarization)
 - **Custom extensions**: Define agents and skills via `.ccmini/agents/` and `.ccmini/skills/`
 - **3-tier context compression**: budget → snip → microcompact
@@ -19,6 +20,7 @@ A minimal AI coding agent built from scratch in TypeScript, inspired by [Claude 
 - **Memory system**: Per-project storage with 4 types — user / feedback / project / reference
 - **Tab completion**: Commands and skills in REPL
 - **Extended thinking**: Supports Claude 4.6 adaptive thinking
+- **Task tracking**: Built-in task system for creating, updating, and listing tasks
 
 ## Quick Start
 
@@ -159,9 +161,9 @@ cli.ts → parseArgs() → resolveApiConfig() → new Agent() → chat() or runR
 ### Agent Core Loop
 
 ```
-User input → Compression pipeline → Backend abstraction → API call → Parse response
-                                                                    ├── Text → Print to terminal
-                                                                    └── Tool call → Permission check → Execute → Add result to history → Continue loop
+User input → Compression pipeline → Backend abstraction → Streaming API call → Parse response in real-time
+                                                                              ├── Text → Stream to terminal
+                                                                              └── Tool call → Yield on completion → Execute safe tools in parallel → Add result to history → Continue loop
 ```
 
 ### Backend Abstraction Layer
@@ -171,10 +173,10 @@ v2.0 introduces a unified backend abstraction layer, decoupling Agent core from 
 | Component | Description |
 |-----------|-------------|
 | `MessageHandler` | Unified backend interface for message management and streaming |
-| `AnthropicBackend` | Anthropic API implementation |
-| `OpenAIBackend` | OpenAI-compatible API implementation |
+| `AnthropicBackend` | Anthropic API implementation with SSE event-based real-time streaming |
+| `OpenAIBackend` | OpenAI-compatible API implementation with incremental delta streaming |
 
-To add a new backend, simply implement the `MessageHandler` interface without modifying Agent core code.
+Both backends implement **true streaming tool calls**: text is output in real-time, and tool calls are yielded immediately as each content block completes, allowing `chatLoop` to start executing parallel-safe tools during the stream. To add a new backend, simply implement the `MessageHandler` interface without modifying Agent core code.
 
 ### Context Compression Pipeline
 
@@ -289,6 +291,7 @@ claude-code-mini --resume
 - `openai` — OpenAI API client
 - `chalk` — Terminal colors
 - `glob` — File pattern matching
+- `duck-duck-scrape` — DuckDuckGo web search
 
 ## License
 

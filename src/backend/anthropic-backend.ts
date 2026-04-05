@@ -141,6 +141,7 @@ export class AnthropicBackend implements MessageHandler {
         this.emitText(chunk.content);
       }
       if (chunk.toolCall) toolCalls.push(chunk.toolCall);
+      if (chunk.rawAssistantContent) rawAssistantContent = chunk.rawAssistantContent as any[];
       if (chunk.usage) {
         inputTokens = chunk.usage.inputTokens;
         outputTokens = chunk.usage.outputTokens;
@@ -164,57 +165,121 @@ export class AnthropicBackend implements MessageHandler {
       createParams.thinking = { type: "enabled", budget_tokens: maxOutput - 1 };
     }
 
-    const chunks: StreamChunk[] = [];
-    const contentParts: string[] = [];
-
     const stream = this.client.messages.stream(createParams, { signal });
 
-    stream.on("text", (text: string) => {
-      chunks.push({ content: text });
-      contentParts.push(text);
-    });
+    // Track completed content blocks for rawAssistantContent
+    const rawContentBlocks: any[] = [];
 
-    if (this.thinkingMode !== "disabled") {
-      stream.on("streamEvent" as any, (event: any) => {
-        if (event.type === "content_block_start" && event.content_block?.type === "thinking") {
-          chunks.push({ content: "\n[thinking] " });
-          contentParts.push("[thinking] ");
-        } else if (event.type === "content_block_delta" && event.delta?.type === "thinking_delta") {
-          chunks.push({ content: event.delta.thinking });
-          contentParts.push(event.delta.thinking);
-        } else if (event.type === "content_block_stop" && event.content_block?.type === "thinking") {
-          chunks.push({ content: "\n" });
-          contentParts.push("\n");
+    // Current text block accumulator
+    let currentTextBuffer = "";
+
+    // Current tool_use block accumulator
+    let currentToolId = "";
+    let currentToolName = "";
+    let currentToolArgs = "";
+
+    // Current block type being streamed
+    let currentBlockType: "text" | "tool_use" | "thinking" | null = null;
+
+    const showThinking = this.thinkingMode !== "disabled";
+
+    for await (const event of stream) {
+      switch (event.type) {
+        case "content_block_start": {
+          const block = (event as any).content_block;
+          if (!block) break;
+
+          if (block.type === "text") {
+            currentBlockType = "text";
+            currentTextBuffer = "";
+          } else if (block.type === "tool_use") {
+            currentBlockType = "tool_use";
+            currentToolId = block.id;
+            currentToolName = block.name;
+            currentToolArgs = "";
+          } else if (block.type === "thinking") {
+            currentBlockType = "thinking";
+            if (showThinking) {
+              yield { content: "\n[thinking] " };
+            }
+          }
+          break;
         }
-      });
-    }
 
-    const finalMessage = await stream.finalMessage();
-    const contentBlocks = finalMessage.content.filter((block: any) => block.type !== "thinking");
+        case "content_block_delta": {
+          const delta = (event as any).delta;
+          if (!delta) break;
 
-    for (const block of contentBlocks) {
-      if (block.type === "tool_use") {
-        chunks.push({
-          toolCall: {
-            id: block.id,
-            name: block.name,
-            arguments: JSON.stringify(block.input),
-          },
-        });
+          if (delta.type === "text_delta") {
+            currentTextBuffer += delta.text;
+            yield { content: delta.text };
+          } else if (delta.type === "input_json_delta") {
+            currentToolArgs += delta.partial_json;
+          } else if (delta.type === "thinking_delta") {
+            if (showThinking) {
+              yield { content: delta.thinking };
+            }
+          }
+          break;
+        }
+
+        case "content_block_stop": {
+          if (currentBlockType === "text") {
+            rawContentBlocks.push({ type: "text", text: currentTextBuffer });
+            currentTextBuffer = "";
+          } else if (currentBlockType === "tool_use") {
+            // Parse input for rawAssistantContent
+            let parsedInput: unknown;
+            try {
+              parsedInput = JSON.parse(currentToolArgs || "{}");
+            } catch {
+              parsedInput = {};
+            }
+            rawContentBlocks.push({
+              type: "tool_use",
+              id: currentToolId,
+              name: currentToolName,
+              input: parsedInput,
+            });
+
+            // Yield toolCall immediately — enables parallel execution in chatLoop
+            yield {
+              toolCall: {
+                id: currentToolId,
+                name: currentToolName,
+                arguments: currentToolArgs || "{}",
+              },
+            };
+
+            currentToolId = "";
+            currentToolName = "";
+            currentToolArgs = "";
+          } else if (currentBlockType === "thinking") {
+            if (showThinking) {
+              yield { content: "\n" };
+            }
+          }
+          currentBlockType = null;
+          break;
+        }
+
+        case "message_delta": {
+          // usage.output_tokens arrives here but we get accurate totals from finalMessage
+          break;
+        }
       }
     }
 
-    chunks.push({
+    // finalMessage() resolves instantly after iteration completes
+    const finalMessage = await stream.finalMessage();
+    yield {
       usage: {
         inputTokens: finalMessage.usage.input_tokens,
         outputTokens: finalMessage.usage.output_tokens,
       },
-    });
+    };
 
-    chunks.push({ done: true });
-
-    for (const chunk of chunks) {
-      yield chunk;
-    }
+    yield { rawAssistantContent: rawContentBlocks };
+    yield { done: true };
   }
 }

@@ -127,11 +127,12 @@ export async function showFreeTextInput(prompt: string): Promise<string> {
       if (process.stdin.isTTY && wasRaw !== undefined) {
         process.stdin.setRawMode(wasRaw);
       }
-      process.stdin.pause();
       for (const fn of savedKeypressListeners) {
         process.stdin.on("keypress", fn as (...args: any[]) => void);
       }
-      process.stdout.write("\x1b[1A\x1b[2K");
+      if (process.stdin.isPaused()) {
+        process.stdin.resume();
+      }
     };
 
     let input = "";
@@ -141,31 +142,29 @@ export async function showFreeTextInput(prompt: string): Promise<string> {
     };
 
     const onData = (data: Buffer) => {
-      const key = data.toString();
+      const chunk = data.toString();
 
-      if (key === "\x03" || key === "\x1b") {
+      if (chunk === "\x03" || chunk === "\x1b") {
         cleanup();
         resolve("");
         return;
       }
 
-      if (key === "\r" || key === "\n") {
+      if (chunk === "\r" || chunk === "\n") {
         cleanup();
         console.log("");
         resolve(input);
         return;
       }
 
-      if (key === "\x7f" || key === "\b") {
+      if (chunk === "\x7f" || chunk === "\b") {
         input = input.slice(0, -1);
         render();
         return;
       }
 
-      if (key.length === 1 && key >= " " && key <= "~") {
-        input += key;
-        render();
-      }
+      input += chunk;
+      render();
     };
 
     if (process.stdin.isTTY) {

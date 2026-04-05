@@ -9,6 +9,7 @@
 ## 特性
 
 - **双后端支持**：Anthropic Claude（原生）+ 任意 OpenAI 兼容 API
+- **真流式工具调用**：双后端均实现真流式——文本实时输出，工具调用在 content block 完成时立即产出，支持并行执行安全工具
 - **三层模型架构**：pro / lite / mini 三级模型，自动路由 sub-agent 到低成本模型
 - **13 个内置工具**：read_file、write_file、edit_file、list_files、grep_search、run_shell、skill、agent、task_create、task_update、task_list、web_search、ask_user
 - **4 种内置代理**：explore（只读探索）、plan（规划）、general（全功能）、compact（压缩）
@@ -160,9 +161,9 @@ cli.ts → parseArgs() → resolveApiConfig() → new Agent() → chat() 或 run
 ### Agent 核心循环
 
 ```
-用户输入 → 压缩管线 → 后端抽象层 → API 调用 → 解析响应
-                                              ├── 文本 → 输出到终端
-                                              └── 工具调用 → 权限检查 → 执行 → 结果入历史 → 继续循环
+用户输入 → 压缩管线 → 后端抽象层 → 流式 API 调用 → 实时解析响应
+                                              ├── 文本 → 实时输出到终端
+                                              └── 工具调用 → 流式产出 → 并行执行安全工具 → 结果入历史 → 继续循环
 ```
 
 ### 后端抽象层
@@ -172,10 +173,10 @@ v2.0 引入了统一的后端抽象层，通过 `MessageHandler` 接口解耦 Ag
 | 组件 | 说明 |
 |------|------|
 | `MessageHandler` | 后端统一接口，定义消息管理和流式调用 |
-| `AnthropicBackend` | Anthropic API 实现 |
-| `OpenAIBackend` | OpenAI 兼容 API 实现 |
+| `AnthropicBackend` | Anthropic API 实现，基于 SSE 事件迭代的真流式 |
+| `OpenAIBackend` | OpenAI 兼容 API 实现，增量 delta 流式 |
 
-新增后端只需实现 `MessageHandler` 接口，无需修改 Agent 核心代码。
+两个后端均实现了**真流式工具调用**：文本实时输出，工具调用在各自 content block 完成时立即 yield，`chatLoop` 可在流式过程中并行启动安全工具的执行。新增后端只需实现 `MessageHandler` 接口，无需修改 Agent 核心代码。
 
 ### 上下文压缩管线
 
@@ -226,13 +227,18 @@ mode: inline
 
 在 REPL 中通过 `/commit` 调用。
 
-### 权限配置
+### 权限与 API 配置
 
 在 `.ccmini/settings.json` 中配置：
 
 ```json
 {
   "permissionMode": "default",
+  "api": {
+    "provider": "openai",           // "anthropic" 或 "openai"
+    "apiKey": "sk-xxx",             // 可选，优先使用环境变量
+    "baseUrl": "https://api.example.com/v1"  // 可选
+  },
   "models": {
     "pro": "claude-sonnet-4-20250514",
     "lite": "claude-3-5-haiku-20241022",
@@ -245,6 +251,8 @@ mode: inline
   }
 }
 ```
+
+**优先级**：命令行参数 > 环境变量 > 配置文件
 
 ## 环境变量
 

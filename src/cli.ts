@@ -7,13 +7,19 @@ import { parseArgs } from "./cli/args.js";
 import { resolveApiConfig } from "./cli/config.js";
 import { runRepl } from "./cli/repl.js";
 import { initModelTiers } from "./core/model-tiers.js";
+import { runConnectFlow } from "./cli/commands.js";
 
 async function main() {
   const args = parseArgs();
+
+  if (args.connect) {
+    await runConnectFlow();
+    process.exit(0);
+  }
+
   const { permissionMode, model, prompt, resume, thinking, maxTurns } = args;
   const { apiBase, apiKey, useOpenAI } = resolveApiConfig(args);
 
-  // Initialize model tier system (loads config files + env vars)
   initModelTiers();
 
   const agent = new Agent({
@@ -23,7 +29,6 @@ async function main() {
     apiKey,
   });
 
-  // Resume session if requested
   if (resume) {
     const sessionId = getLatestSessionId();
     if (sessionId) {
@@ -42,7 +47,6 @@ async function main() {
   }
 
   if (prompt) {
-    // One-shot mode
     try {
       await agent.chat(prompt);
     } catch (e: any) {
@@ -50,9 +54,11 @@ async function main() {
       process.exit(1);
     }
   } else {
-    // Interactive REPL mode
     await runRepl(agent);
   }
 }
 
-main();
+main().catch((e) => {
+  printError(e.message);
+  process.exit(1);
+});

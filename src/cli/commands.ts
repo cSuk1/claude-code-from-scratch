@@ -1,5 +1,5 @@
 import { Agent } from "../core/agent.js";
-import { printInfo, printError } from "../ui/index.js";
+import { printInfo, printError, showMenu, showFreeTextInput } from "../ui/index.js";
 import { listMemories } from "../storage/memory.js";
 import { discoverSkills } from "../extensions/skills.js";
 import {
@@ -10,6 +10,9 @@ import {
   getModelForTier,
   type ModelTier,
 } from "../core/model-tiers.js";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 
 // ─── Slash Command Interface ────────────────────────────────
 
@@ -106,7 +109,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
     handler: (agent, args) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
 
-      // /model — show current model + all tiers
       if (parts.length === 0) {
         printInfo(`Current model: ${agent.model}`);
         console.log("");
@@ -119,14 +121,28 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
         return;
       }
 
-      // /model <tier> <name> — set a tier's model
       if (parts.length >= 2 && isTierName(parts[0])) {
         const tier = parts[0] as ModelTier;
         const modelName = parts.slice(1).join(" ");
         setTierModel(tier, modelName);
+
+        const configPath = join(homedir(), ".ccmini", "settings.json");
+        let config: any = {};
+        if (existsSync(configPath)) {
+          try {
+            config = JSON.parse(readFileSync(configPath, "utf-8"));
+          } catch {
+            // Ignore
+          }
+        }
+        if (!config.models) config.models = {};
+        config.models[tier] = modelName;
+        mkdirSync(join(homedir(), ".ccmini"), { recursive: true });
+        writeFileSync(configPath, JSON.stringify(config, null, 2));
+
         const cfg = getTierConfig(tier);
-        printInfo(`Tier ${tier.toUpperCase()} → ${cfg.model}  [runtime]`);
-        // If switching the pro tier, also switch the main agent's active model
+        printInfo(`Tier ${tier.toUpperCase()} → ${cfg.model}  [config]`);
+
         if (tier === "pro") {
           agent.switchModel(modelName);
           printInfo(`Active model also switched to: ${modelName}`);
@@ -134,7 +150,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
         return;
       }
 
-      // /model <tier> — show a single tier's config
       if (parts.length === 1 && isTierName(parts[0])) {
         const cfg = getTierConfig(parts[0] as ModelTier);
         printInfo(`Tier ${cfg.tier.toUpperCase()}: ${cfg.model}  [${cfg.source}]`);
@@ -142,13 +157,29 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
         return;
       }
 
-      // /model <name> — switch the main agent's model directly
       const newModel = parts.join(" ");
       const result = agent.switchModel(newModel);
-      printInfo(`Switched to model: ${result.model}`);
+
+      const configPath = join(homedir(), ".ccmini", "settings.json");
+      let config: any = {};
+      if (existsSync(configPath)) {
+        try {
+          config = JSON.parse(readFileSync(configPath, "utf-8"));
+        } catch {
+          // Ignore
+        }
+      }
+      if (!config.models) config.models = {};
+      config.models.pro = newModel;
+      config.models.lite = newModel;
+      config.models.mini = newModel;
+      mkdirSync(join(homedir(), ".ccmini"), { recursive: true });
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+      printInfo(`Switched to model: ${result.model} (saved to config)`);
       if (!result.known) {
         printInfo(
-          `Warning: "${result.model}" is not a recognized model. Make sure the model name is correct and your API backend supports it.`
+          `Warning: "${result.model}" is not a recognized model.`
         );
       }
     },
@@ -172,22 +203,124 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   });
 
   registry.register({
-    name: "skills",
-    description: "List available skills",
-    usage: "/skills",
-    handler: (_agent, _args) => {
-      const skills = discoverSkills();
-      if (skills.length === 0) {
-        printInfo(
-          "No skills found. Add skills to .ccmini/skills/<name>/SKILL.md"
-        );
-      } else {
-        printInfo(`${skills.length} skills:`);
-        for (const s of skills) {
-          const tag = s.userInvocable ? `/${s.name}` : s.name;
-          console.log(`    ${tag} (${s.source}) — ${s.description}`);
-        }
-      }
+    name: "connect",
+    description: "Connect to an API provider (type, baseUrl, apiKey, model)",
+    usage: "/connect",
+    handler: async (agent, _args) => {
+      await runConnectFlow(agent);
     },
   });
+}
+
+function saveApiConfig(
+  provider: "anthropic" | "openai",
+  baseUrl: string,
+  apiKey: string,
+  model?: string
+): void {
+  const configPath = join(homedir(), ".ccmini", "settings.json");
+  let config: any = {};
+
+  if (existsSync(configPath)) {
+    try {
+      config = JSON.parse(readFileSync(configPath, "utf-8"));
+    } catch {
+      // Ignore malformed config
+    }
+  }
+
+  config.api = {
+    provider,
+    baseUrl: baseUrl || undefined,
+    apiKey: apiKey || undefined,
+  };
+
+  if (model) {
+    if (!config.models) config.models = {};
+    config.models.pro = model;
+    config.models.lite = model;
+    config.models.mini = model;
+  }
+
+  const dir = join(homedir(), ".ccmini");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(configPath, JSON.stringify(config, null, 2));
+}
+
+function saveApiConfigWithModels(
+  provider: "anthropic" | "openai",
+  baseUrl: string,
+  apiKey: string,
+  proModel: string,
+  liteModel: string,
+  miniModel: string
+): void {
+  const configPath = join(homedir(), ".ccmini", "settings.json");
+  let config: any = {};
+
+  if (existsSync(configPath)) {
+    try {
+      config = JSON.parse(readFileSync(configPath, "utf-8"));
+    } catch {
+      // Ignore malformed config
+    }
+  }
+
+  config.api = {
+    provider,
+    baseUrl: baseUrl || undefined,
+    apiKey: apiKey || undefined,
+  };
+
+  if (!config.models) config.models = {};
+  config.models.pro = proModel;
+  config.models.lite = liteModel;
+  config.models.mini = miniModel;
+
+  const dir = join(homedir(), ".ccmini");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(configPath, JSON.stringify(config, null, 2));
+}
+
+export async function runConnectFlow(agent?: Agent): Promise<void> {
+  const choice = await showMenu(
+    "Select provider type:",
+    [
+      { label: "Anthropic (Claude)", value: "anthropic" },
+      { label: "OpenAI Compatible", value: "openai" },
+    ]
+  );
+
+  if (!choice) return;
+
+  const baseUrl = await showFreeTextInput(
+    choice === "anthropic" ? "Base URL (optional)" : "Base URL"
+  );
+
+  const apiKey = await showFreeTextInput("API Key");
+
+  const proModel = await showFreeTextInput("Pro model name");
+  const liteModel = await showFreeTextInput("Lite model name (optional, press Enter to skip)");
+  const miniModel = await showFreeTextInput("Mini model name (optional, press Enter to skip)");
+
+  saveApiConfigWithModels(
+    choice as "anthropic" | "openai",
+    baseUrl,
+    apiKey,
+    proModel,
+    liteModel || proModel,
+    miniModel || liteModel || proModel
+  );
+
+  printInfo(`Saved configuration to ~/.ccmini/settings.json`);
+
+  if (agent) {
+    agent.switchModel(proModel);
+    setTierModel("pro", proModel);
+    if (liteModel) setTierModel("lite", liteModel);
+    if (miniModel) setTierModel("mini", miniModel);
+    printInfo(`Models updated: pro=${proModel}, lite=${liteModel || proModel}, mini=${miniModel || liteModel || proModel}`);
+  }
+
+  printInfo(`Connected to ${choice} at ${baseUrl || "(default)"}`);
 }
