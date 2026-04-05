@@ -1,11 +1,9 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
+import { READ_TOOLS, WRITE_TOOLS } from "./definitions.js";
 
 export type PermissionMode = "default" | "plan" | "acceptEdits" | "bypassPermissions" | "dontAsk";
-
-const READ_TOOLS = new Set(["read_file", "list_files", "grep_search", "ask_user"]);
-const EDIT_TOOLS = new Set(["write_file", "edit_file"]);
 
 const DANGEROUS_PATTERNS = [
   /\brm\s/,
@@ -130,11 +128,11 @@ export function checkPermission(
 
   if (READ_TOOLS.has(toolName)) return { action: "allow" };
 
-  if (mode === "plan" && EDIT_TOOLS.has(toolName)) {
+  if (mode === "plan" && WRITE_TOOLS.has(toolName)) {
     return { action: "deny", message: `Blocked in plan mode: ${toolName}` };
   }
 
-  if (mode === "acceptEdits" && EDIT_TOOLS.has(toolName)) {
+  if (mode === "acceptEdits" && WRITE_TOOLS.has(toolName)) {
     return { action: "allow" };
   }
 

@@ -1,12 +1,24 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
-// Tool definition type for Claude API
 export type ToolDef = Anthropic.Tool;
 
-export const toolDefinitions: ToolDef[] = [
+export type ToolCategory = "read" | "write" | "exec" | "agent" | "meta";
+
+export interface ToolMetadata {
+  category: ToolCategory;
+  parallelSafe: boolean;
+  idempotent: boolean;
+}
+
+export interface ToolDefWithMeta extends ToolDef {
+  metadata: ToolMetadata;
+}
+
+export const toolDefinitions: ToolDefWithMeta[] = [
   {
     name: "read_file",
     description: "Read file contents with line numbers. Use offset/limit for pagination, omit limit for first 80 lines, use 0 for all remaining.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -28,8 +40,8 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "write_file",
-    description:
-      "Write content to a file. Creates the file if it doesn't exist, overwrites if it does.",
+    description: "Write content to a file. Creates the file if it doesn't exist, overwrites if it does.",
+    metadata: { category: "write", parallelSafe: false, idempotent: false },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -47,8 +59,8 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "edit_file",
-    description:
-      "Edit a file by replacing an exact string match with new content. The old_string must match exactly (including whitespace and indentation).",
+    description: "Edit a file by replacing an exact string match with new content.",
+    metadata: { category: "write", parallelSafe: false, idempotent: false },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -70,8 +82,8 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "list_files",
-    description:
-      "List files matching a glob pattern. Returns matching file paths.",
+    description: "List files matching a glob pattern.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -91,8 +103,8 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "grep_search",
-    description:
-      "Search for a pattern in files. Returns matching lines with file paths and line numbers.",
+    description: "Search for a pattern in files.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -115,8 +127,8 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "run_shell",
-    description:
-      "Execute a shell command and return its output. Use this for running tests, installing packages, git operations, etc.",
+    description: "Execute a shell command.",
+    metadata: { category: "exec", parallelSafe: false, idempotent: false },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -134,8 +146,8 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "skill",
-    description:
-      "Invoke a registered skill by name. Skills are prompt templates loaded from .ccmini/skills/. Returns the skill's resolved prompt to follow.",
+    description: "Invoke a registered skill by name.",
+    metadata: { category: "agent", parallelSafe: false, idempotent: false },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -153,8 +165,8 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "agent",
-    description:
-      "Launch a sub-agent to handle a task autonomously. Sub-agents have isolated context and return their result. Built-in types: 'explore' (read-only, fast search), 'plan' (read-only, structured planning), 'general' (full tools). Custom agent types defined in .ccmini/agents/*.md are also available — see system prompt for details. You can optionally specify a model tier (pro/lite/mini) or an explicit model name.",
+    description: "Launch a sub-agent to handle a task autonomously.",
+    metadata: { category: "agent", parallelSafe: false, idempotent: false },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -178,11 +190,10 @@ export const toolDefinitions: ToolDef[] = [
       required: ["description", "prompt"],
     },
   },
-  // ─── Task management tools ──────────────────────────────────
   {
     name: "task_create",
-    description:
-      "Create a task to track progress on a multi-step operation. Use this proactively when starting complex tasks with 3+ steps. The task list is displayed to the user in real-time.",
+    description: "Create a task to track progress.",
+    metadata: { category: "meta", parallelSafe: true, idempotent: false },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -204,8 +215,8 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "task_update",
-    description:
-      "Update a task's status or details. Set status to 'in_progress' when starting work, 'completed' when done. Set to 'deleted' to remove a task.",
+    description: "Update a task's status or details.",
+    metadata: { category: "meta", parallelSafe: false, idempotent: false },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -236,18 +247,14 @@ export const toolDefinitions: ToolDef[] = [
   },
   {
     name: "task_list",
-    description:
-      "List all current tasks and their statuses.",
-    input_schema: {
-      type: "object" as const,
-      properties: {},
-    },
+    description: "List all current tasks and their statuses.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: { type: "object" as const, properties: {} },
   },
-  // ─── Web search tool ────────────────────────────────────────
   {
     name: "web_search",
-    description:
-      "Search the web using DuckDuckGo and return results. Use this when you need up-to-date information, documentation, or answers that are beyond your training data.",
+    description: "Search the web using DuckDuckGo.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -263,11 +270,10 @@ export const toolDefinitions: ToolDef[] = [
       required: ["query"],
     },
   },
-  // ─── User interaction tool ──────────────────────────────────
   {
     name: "ask_user",
-    description:
-      "Ask the user a question and wait for their response. Use this when you need clarification, confirmation, or additional information from the user to proceed. Supports free-form text input or predefined options for the user to choose from.",
+    description: "Ask the user a question and wait for their response.",
+    metadata: { category: "agent", parallelSafe: false, idempotent: false },
     input_schema: {
       type: "object" as const,
       properties: {
@@ -291,3 +297,24 @@ export const toolDefinitions: ToolDef[] = [
     },
   },
 ];
+
+export function getToolMetadata(name: string): ToolMetadata | undefined {
+  return toolDefinitions.find(t => t.name === name)?.metadata;
+}
+
+export function getToolCategory(name: string): ToolCategory | undefined {
+  return getToolMetadata(name)?.category;
+}
+
+export function isParallelSafe(name: string): boolean {
+  return getToolMetadata(name)?.parallelSafe ?? false;
+}
+
+export function isIdempotent(name: string): boolean {
+  return getToolMetadata(name)?.idempotent ?? false;
+}
+
+export const READ_TOOLS = new Set(toolDefinitions.filter(t => t.metadata.category === "read").map(t => t.name));
+export const WRITE_TOOLS = new Set(toolDefinitions.filter(t => t.metadata.category === "write").map(t => t.name));
+export const EXEC_TOOLS = new Set(toolDefinitions.filter(t => t.metadata.category === "exec").map(t => t.name));
+export const AGENT_TOOLS = new Set(toolDefinitions.filter(t => t.metadata.category === "agent").map(t => t.name));

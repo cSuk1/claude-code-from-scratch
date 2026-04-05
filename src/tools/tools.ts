@@ -1,4 +1,4 @@
-export { toolDefinitions, type ToolDef } from "./definitions.js";
+export { toolDefinitions, type ToolDef, getToolMetadata, getToolCategory, isParallelSafe, isIdempotent, READ_TOOLS, WRITE_TOOLS, EXEC_TOOLS, AGENT_TOOLS } from "./definitions.js";
 export { executeTool } from "./dispatcher.js";
 export {
   checkPermission,
