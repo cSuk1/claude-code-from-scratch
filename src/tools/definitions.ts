@@ -205,6 +205,18 @@ export const toolDefinitions: ToolDefWithMeta[] = [
           type: "string",
           description: "What needs to be done",
         },
+        steps: {
+          type: "array",
+          description: "Optional list of steps to break down the task",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Step title" },
+              description: { type: "string", description: "Optional step description" },
+            },
+            required: ["title"],
+          },
+        },
         activeForm: {
           type: "string",
           description: "Present continuous form shown while in_progress (e.g. 'Fixing authentication bug'). If omitted, subject is used.",
@@ -236,6 +248,19 @@ export const toolDefinitions: ToolDefWithMeta[] = [
         description: {
           type: "string",
           description: "New description for the task",
+        },
+        steps: {
+          type: "array",
+          description: "Update the task's steps",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "Step ID (e.g., '1.1')" },
+              title: { type: "string", description: "Step title" },
+              description: { type: "string", description: "Optional step description" },
+              status: { type: "string", enum: ["pending", "in_progress", "completed"], description: "Step status" },
+            },
+          },
         },
         activeForm: {
           type: "string",

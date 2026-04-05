@@ -5,11 +5,19 @@
 
 export type TaskStatus = "pending" | "in_progress" | "completed";
 
+export interface TaskStep {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+}
+
 export interface Task {
   id: string;
   subject: string;
   description: string;
   status: TaskStatus;
+  steps?: TaskStep[];
   /** Present continuous form shown while in_progress, e.g. "Running tests" */
   activeForm?: string;
 }
@@ -18,6 +26,7 @@ export interface TaskUpdateFields {
   subject?: string;
   description?: string;
   status?: TaskStatus | "deleted";
+  steps?: TaskStep[];
   activeForm?: string;
 }
 
@@ -26,6 +35,7 @@ export interface TaskUpdateFields {
 class TaskStore {
   private tasks = new Map<string, Task>();
   private nextId = 1;
+  private nextStepId = 1;
   private changeListeners: Array<() => void> = [];
 
   /** Register a callback that fires on every mutation */
@@ -38,18 +48,26 @@ class TaskStore {
 
   private notify(): void {
     for (const fn of this.changeListeners) {
-      try { fn(); } catch {}
+      try { fn(); } catch { }
     }
   }
 
   /** Create a new task. Returns the created task. */
-  create(subject: string, description: string, activeForm?: string): Task {
+  create(subject: string, description: string, steps?: TaskStep[], activeForm?: string): Task {
     const id = String(this.nextId++);
+
+    const processedSteps = steps?.map((step, index) => ({
+      ...step,
+      id: step.id || `${id}.${index + 1}`,
+      status: step.status || "pending" as TaskStatus,
+    }));
+
     const task: Task = {
       id,
       subject,
       description,
       status: "pending",
+      steps: processedSteps,
       activeForm,
     };
     this.tasks.set(id, task);
@@ -72,6 +90,7 @@ class TaskStore {
     if (fields.subject !== undefined) task.subject = fields.subject;
     if (fields.description !== undefined) task.description = fields.description;
     if (fields.status !== undefined) task.status = fields.status as TaskStatus;
+    if (fields.steps !== undefined) task.steps = fields.steps;
     if (fields.activeForm !== undefined) task.activeForm = fields.activeForm;
 
     this.notify();
@@ -102,6 +121,7 @@ class TaskStore {
   clear(): void {
     this.tasks.clear();
     this.nextId = 1;
+    this.nextStepId = 1;
     this.notify();
   }
 }

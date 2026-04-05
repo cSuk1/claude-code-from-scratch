@@ -20,11 +20,19 @@ function boxEmpty(width: number): string {
   return C.border("  │") + " ".repeat(width + 2) + C.border("│");
 }
 
+type TaskStep = {
+  id: string;
+  title: string;
+  description?: string;
+  status: "pending" | "in_progress" | "completed";
+};
+
 type Task = {
   subject: string;
   description?: string;
   activeForm?: string;
   status: "pending" | "in_progress" | "completed" | "deleted";
+  steps?: TaskStep[];
 };
 
 export function printWelcome(model?: string) {
@@ -55,15 +63,15 @@ export function printUserPrompt() {
 }
 
 const TOOL_ICONS: Record<string, string> = {
-  read_file:    "◇",
-  list_files:   "◇",
-  grep_search:  "⊙",
-  write_file:   "◆",
-  edit_file:    "◆",
-  run_shell:    "▶",
-  skill:        "★",
-  agent:        "▸",
-  ask_user:     "?",
+  read_file: "◇",
+  list_files: "◇",
+  grep_search: "⊙",
+  write_file: "◆",
+  edit_file: "◆",
+  run_shell: "▶",
+  skill: "★",
+  agent: "▸",
+  ask_user: "?",
 };
 
 function getToolSummary(name: string, input: Record<string, any>): string {
@@ -186,14 +194,23 @@ export function printTokenUsage(inputTokens: number, outputTokens: number) {
 export function getTaskSpinnerLabel(tasks: Task[]): string | null {
   if (tasks.length === 0) return null;
 
+  const currentTask = tasks.find((t) => t.status === "in_progress");
+
+  if (currentTask) {
+    if (currentTask.steps && currentTask.steps.length > 0) {
+      const completedSteps = currentTask.steps.filter((s) => s.status === "completed").length;
+      const totalSteps = currentTask.steps.length;
+      const currentStep = currentTask.steps.find((s) => s.status === "in_progress");
+      const text = currentStep ? currentStep.title : currentTask.activeForm || currentTask.subject;
+      return `[${completedSteps}/${totalSteps}] ${text}`;
+    }
+    const text = currentTask.activeForm || currentTask.subject;
+    const done = tasks.filter((t) => t.status === "completed").length;
+    return `[${done}/${tasks.length}] ${text}`;
+  }
+
   const done = tasks.filter((t) => t.status === "completed").length;
   const total = tasks.length;
-  const current = tasks.find((t) => t.status === "in_progress");
-
-  if (current) {
-    const text = current.activeForm || current.subject;
-    return `[${done}/${total}] ${text}`;
-  }
 
   if (done < total) {
     return `[${done}/${total}] Thinking`;
@@ -209,9 +226,9 @@ export function printTaskSummary(tasks: Task[]): void {
   console.log(C.success(`\n  ✓ Tasks: ${done}/${total} completed`));
 }
 
-export function clearTaskList(): void {}
+export function clearTaskList(): void { }
 
-export function renderTaskList(_tasks: Task[]): void {}
+export function renderTaskList(_tasks: Task[]): void { }
 
 export function printSubAgentStart(type: string, description: string) {
   console.log(
