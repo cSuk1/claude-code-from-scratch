@@ -321,6 +321,108 @@ export const toolDefinitions: ToolDefWithMeta[] = [
       required: ["question"],
     },
   },
+  {
+    name: "git_status",
+    description: "Show git repository status: branch, staged/modified/untracked files.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "git_diff",
+    description: "Show unstaged changes. Use file_path to diff a specific file.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        file_path: {
+          type: "string",
+          description: "Optional: specific file to diff. If omitted, shows all changes.",
+        },
+      },
+    },
+  },
+  {
+    name: "git_diff_staged",
+    description: "Show staged changes (committed to index but not yet committed).",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "git_log",
+    description: "Show recent commits. Use limit for number of commits, file_path to filter by file.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        limit: {
+          type: "number",
+          description: "Number of commits to show (default: 10, max: 50)",
+        },
+        file_path: {
+          type: "string",
+          description: "Optional: show only commits affecting this file",
+        },
+      },
+    },
+  },
+  {
+    name: "git_show",
+    description: "Show file content at a specific commit. Use ref (commit hash/branch) and optional file_path.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        ref: {
+          type: "string",
+          description: "Commit hash, branch name, or tag (e.g., 'HEAD~3', 'main', 'v1.0.0')",
+        },
+        file_path: {
+          type: "string",
+          description: "Optional: show specific file at that commit",
+        },
+      },
+      required: ["ref"],
+    },
+  },
+  {
+    name: "git_blame",
+    description: "Show who last modified each line of a file.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        file_path: {
+          type: "string",
+          description: "The file to blame",
+        },
+      },
+      required: ["file_path"],
+    },
+  },
+  {
+    name: "git_branch",
+    description: "List all local and remote branches.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "git_remote",
+    description: "List git remotes with their URLs.",
+    metadata: { category: "read", parallelSafe: true, idempotent: true },
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
 ];
 
 export function getToolMetadata(name: string): ToolMetadata | undefined {

@@ -3,6 +3,7 @@ import { listFiles, grepSearch } from "./search.js";
 import { runShell } from "./shell.js";
 import { taskCreate, taskUpdate, taskList } from "./tasks.js";
 import { webSearch } from "./web-search.js";
+import { getGitStatus, getGitDiff, getGitDiffStaged, getGitLog, getGitShow, getGitBlame, getGitBranches, getGitRemotes, getGitInfoSummary } from "./git.js";
 
 export type ToolInput = Record<string, any>;
 
@@ -19,6 +20,28 @@ export const handlers: Record<string, ToolHandler> = {
   task_update: (input) => taskUpdate(input as { taskId: string; status?: string; subject?: string; description?: string; steps?: Array<{ id?: string; title?: string; description?: string; status?: string }>; activeForm?: string }),
   task_list: () => taskList(),
   web_search: (input) => webSearch(input as { query: string; max_results?: number }),
+  // Git tools
+  git_status: () => getGitInfoSummary(),
+  git_diff: (input) => getGitDiff(input.file_path),
+  git_diff_staged: () => getGitDiffStaged(),
+  git_log: (input) => {
+    const limit = Math.min(input.limit || 10, 50);
+    const commits = getGitLog(limit, input.file_path);
+    if (commits.length === 0) return "No commits found";
+    return commits.map(c => `${c.shortHash} - ${c.subject} (${c.author}, ${c.date})`).join("\n");
+  },
+  git_show: (input) => getGitShow(input.ref, input.file_path),
+  git_blame: (input) => getGitBlame(input.file_path),
+  git_branch: () => {
+    const branches = getGitBranches();
+    if (branches.length === 0) return "No branches found";
+    return branches.map(b => `${b.current ? "* " : "  "}${b.name}${b.remote ? " (remote)" : ""}`).join("\n");
+  },
+  git_remote: () => {
+    const remotes = getGitRemotes();
+    if (remotes.length === 0) return "No remotes configured";
+    return remotes.map(r => `${r.name}: ${r.fetch || r.push}`).join("\n");
+  },
 };
 
 export async function executeToolHandler(name: string, input: ToolInput): Promise<string> {
