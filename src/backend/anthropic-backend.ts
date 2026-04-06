@@ -165,7 +165,17 @@ export class AnthropicBackend implements MessageHandler {
       createParams.thinking = { type: "enabled", budget_tokens: maxOutput - 1 };
     }
 
-    const stream = this.client.messages.stream(createParams, { signal });
+    // Wrap API call with retry using withRetry
+    const stream = await withRetry(async (retrySignal) => {
+      return this.client.messages.stream(createParams, { signal: retrySignal });
+    }, {
+      signal,
+      maxRetries: 3,
+      onRetry: (info) => {
+        // Emit retry info via emitText (non-blocking)
+        this.emitText(`\n[Retry ${info.attempt}/${info.maxRetries}] ${info.reason}, waiting ${Math.round(info.delayMs / 1000)}s...\n`);
+      }
+    });
 
     // Track completed content blocks for rawAssistantContent
     const rawContentBlocks: any[] = [];

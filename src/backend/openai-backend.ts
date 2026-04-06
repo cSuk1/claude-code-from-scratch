@@ -152,7 +152,13 @@ export class OpenAIBackend implements MessageHandler {
         stream: true,
         stream_options: { include_usage: true },
       }, { signal: retrySignal });
-    }, { signal, onRetry: () => { } });
+    }, {
+      signal,
+      maxRetries: 3,
+      onRetry: (info) => {
+        this.emitText(`\n[Retry ${info.attempt}/${info.maxRetries}] ${info.reason}, waiting ${Math.round(info.delayMs / 1000)}s...\n`);
+      }
+    });
 
     const pendingTools: Map<number, { id: string; name: string; arguments: string }> = new Map();
     let prevIndex = -1;
