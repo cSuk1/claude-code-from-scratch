@@ -21,7 +21,8 @@ A minimal AI coding agent built from scratch in TypeScript, inspired by [Claude 
 - **Tab completion**: Commands and skills in REPL
 - **Extended thinking**: Supports Claude 4.6 adaptive thinking
 - **Task tracking**: Built-in task system for creating, updating, and listing tasks
-- **Complete test coverage**: Vitest unit test framework, 207 test cases covering core modules
+- **File change tracking**: Automatic tracking of `write_file`/`edit_file` operations per turn, with change history and rollback support
+- **Complete test coverage**: Vitest unit test framework, 350 test cases covering core modules
 
 ## Quick Start
 
@@ -82,6 +83,8 @@ Available in interactive mode:
 | `/memory` | List saved memories |
 | `/skills` | List available skills |
 | `/connect` | Interactively connect to API provider (type, URL, key, model) |
+| `/trace` | Show file change history by turn |
+| `/revert` | Revert the last turn's file changes |
 | `/<skill-name> [args]` | Invoke a skill |
 
 Tab completion supported for commands and skill names.

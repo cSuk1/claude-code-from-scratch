@@ -210,6 +210,35 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
       await runConnectFlow(agent);
     },
   });
+
+  registry.register({
+    name: "trace",
+    description: "Show all file changes by turn",
+    usage: "/trace",
+    handler: (agent, _args) => {
+      const summary = agent.getFileChangeTrace();
+      if (summary) {
+        printInfo(summary);
+      }
+    },
+  });
+
+  registry.register({
+    name: "revert",
+    description: "Revert the last turn's file changes",
+    usage: "/revert",
+    handler: async (agent, _args) => {
+      const result = agent.revertLastTurn();
+      if (result.success) {
+        printInfo(`Reverted ${result.reverted.length} file(s):`);
+        for (const f of result.reverted) {
+          console.log(`  - ${f}`);
+        }
+      } else {
+        printError(result.error || "Failed to revert");
+      }
+    },
+  });
 }
 
 interface ApiConfigInput {

@@ -6,6 +6,7 @@ import { taskStore } from "./task-store.js";
 import { saveSession } from "../storage/session.js";
 import { randomUUID } from "crypto";
 import { setMaxListeners } from "events";
+import { existsSync, readFileSync } from "fs";
 import {
   AnthropicBackend,
   OpenAIBackend,
@@ -18,6 +19,7 @@ import { CompressionPipeline } from "./compress.js";
 import { toolStrategies } from "./agent-strategies.js";
 import { resolveSubAgentModel } from "./model-tiers.js";
 import { BUILTIN_AGENT_TYPES } from "../extensions/subagent.js";
+import { initFileTracker, getTracker, clearTracker } from "../storage/file-tracker.js";
 import {
   printAssistantText,
   printToolCall,
@@ -96,6 +98,11 @@ export class Agent {
     this.effectiveWindow = getContextWindow(this._model) - 20000;
     this.sessionId = randomUUID().slice(0, 8);
     this.sessionStartTime = new Date().toISOString();
+
+    // Initialize file change tracker for non-sub-agents
+    if (!this.isSubAgent) {
+      initFileTracker(this.sessionId);
+    }
     this.apiBase = options.apiBase;
     this.apiKey = options.apiKey;
     this.anthropicBaseURL = options.anthropicBaseURL;
@@ -207,6 +214,13 @@ export class Agent {
   // ─── Core chat loop ─────────────────────────────────────────
 
   private async chatLoop(): Promise<void> {
+    // Start a new turn for file tracking
+    if (!this.isSubAgent) {
+      const tracker = getTracker();
+      if (tracker) {
+        tracker.startTurn();
+      }
+    }
     while (true) {
       if (this.abortController?.signal.aborted) break;
       const toolResults: ToolResultEntry[] = [];
@@ -341,7 +355,39 @@ export class Agent {
       this.confirmedPaths.add(perm.message);
     }
 
+    let originalContent: string | null = null;
+    let fileExistedBefore = false;
+    let newContent: string | null = null;
+    let needTrack = !this.isSubAgent && (name === "write_file" || name === "edit_file");
+
+    if (needTrack) {
+      fileExistedBefore = existsSync(input.file_path);
+      originalContent = fileExistedBefore ? readFileSync(input.file_path, "utf-8") : "";
+    }
+
     const result = await this.executeToolCall(name, input);
+
+    if (needTrack) {
+      const isSuccess = !result.startsWith("Error");
+      if (isSuccess) {
+        const tracker = getTracker();
+        if (tracker) {
+          if (existsSync(input.file_path)) {
+            newContent = readFileSync(input.file_path, "utf-8");
+          }
+          tracker.recordChange(
+            name as "write_file" | "edit_file",
+            input.file_path,
+            originalContent || "",
+            newContent || "",
+            input.old_string || "",
+            input.new_string || "",
+            fileExistedBefore
+          );
+        }
+      }
+    }
+
     if (printResults) printToolResult(name, result);
     return { toolCallId, content: result };
   }
@@ -515,5 +561,32 @@ export class Agent {
     } catch (e: any) {
       return `Error asking user: ${e.message}`;
     }
+  }
+
+  // ─── File Change Tracking ───────────────────────────────────
+
+  getFileChangeTrace(): string | null {
+    if (this.isSubAgent) return null;
+    const tracker = getTracker();
+    return tracker ? tracker.getTurnSummary() : null;
+  }
+
+  revertLastTurn(): { success: boolean; reverted: string[]; error?: string } {
+    if (this.isSubAgent) {
+      return { success: false, reverted: [], error: "Sub-agent cannot revert" };
+    }
+    const tracker = getTracker();
+    if (!tracker) {
+      return { success: false, reverted: [], error: "No tracker initialized" };
+    }
+    return tracker.revertLastTurn();
+  }
+
+  destroy(): void {
+    if (this.unsubscribeTaskStore) {
+      this.unsubscribeTaskStore();
+      this.unsubscribeTaskStore = undefined;
+    }
+    clearTracker();
   }
 }
