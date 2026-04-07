@@ -1,12 +1,6 @@
 import type { ToolDef } from "../tools/tools.js";
 import type { CompressionPipeline } from "../core/compress.js";
 
-export type StreamEvent =
-  | { type: "text"; content: string }
-  | { type: "thinking"; content: string }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "done" };
-
 export interface StreamChunk {
   content?: string;
   toolCall?: {

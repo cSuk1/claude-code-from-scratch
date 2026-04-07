@@ -1,7 +1,12 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
-import { join, dirname } from "path";
-import { homedir } from "os";
+import { existsSync } from "fs";
 import { READ_TOOLS, WRITE_TOOLS } from "./definitions.js";
+import {
+  getUserSettingsPath,
+  getProjectSettingsPath,
+  loadSettingsFile,
+  readOrCreateSettings,
+  writeSettingsFile,
+} from "../cli/config.js";
 
 export type PermissionMode = "default" | "plan" | "acceptEdits" | "bypassPermissions" | "dontAsk";
 
@@ -48,23 +53,14 @@ function parseRule(rule: string): ParsedRule {
   return { tool: rule, pattern: null };
 }
 
-function loadSettings(filePath: string): any {
-  if (!existsSync(filePath)) return null;
-  try {
-    return JSON.parse(readFileSync(filePath, "utf-8"));
-  } catch {
-    return null;
-  }
-}
-
 export function loadPermissionRules(): PermissionRules {
   if (cachedRules) return cachedRules;
 
   const allow: ParsedRule[] = [];
   const deny: ParsedRule[] = [];
 
-  const userSettings = loadSettings(join(homedir(), ".ccmini", "settings.json"));
-  const projectSettings = loadSettings(join(process.cwd(), ".ccmini", "settings.json"));
+  const userSettings = loadSettingsFile(getUserSettingsPath());
+  const projectSettings = loadSettingsFile(getProjectSettingsPath());
 
   for (const settings of [userSettings, projectSettings]) {
     if (!settings?.permissions) continue;
@@ -175,25 +171,13 @@ export function resetPermissionCache(): void {
 
 // ─── Persist permission rules ────────────────────────────────
 
-const PROJECT_SETTINGS_PATH = join(process.cwd(), ".ccmini", "settings.json");
-const USER_SETTINGS_PATH = join(homedir(), ".ccmini", "settings.json");
-
 /**
  * Save a permission rule to project settings.
  * Creates the .ccmini directory if needed.
  */
 export function savePermissionRule(rule: string, type: "allow" | "deny"): void {
-  const settingsPath = PROJECT_SETTINGS_PATH;
-  let settings: any = {};
-
-  // Load existing settings
-  if (existsSync(settingsPath)) {
-    try {
-      settings = JSON.parse(readFileSync(settingsPath, "utf-8"));
-    } catch {
-      settings = {};
-    }
-  }
+  const settingsPath = getProjectSettingsPath();
+  const settings = readOrCreateSettings(settingsPath);
 
   // Initialize permissions object
   if (!settings.permissions) {
@@ -212,11 +196,8 @@ export function savePermissionRule(rule: string, type: "allow" | "deny"): void {
     list.push(rule);
   }
 
-  // Ensure directory exists
-  mkdirSync(dirname(settingsPath), { recursive: true });
-
   // Write back
-  writeFileSync(settingsPath, JSON.stringify(settings, null, 2), "utf-8");
+  writeSettingsFile(settingsPath, settings);
 
   // Invalidate cache so next check picks up the new rule
   cachedRules = null;

@@ -10,9 +10,11 @@ import {
   getModelForTier,
   type ModelTier,
 } from "../core/model-tiers.js";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
+import {
+  getUserSettingsPath,
+  readOrCreateSettings,
+  writeSettingsFile,
+} from "./config.js";
 
 // ─── Slash Command Interface ────────────────────────────────
 
@@ -126,19 +128,11 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
         const modelName = parts.slice(1).join(" ");
         setTierModel(tier, modelName);
 
-        const configPath = join(homedir(), ".ccmini", "settings.json");
-        let config: any = {};
-        if (existsSync(configPath)) {
-          try {
-            config = JSON.parse(readFileSync(configPath, "utf-8"));
-          } catch {
-            // Ignore
-          }
-        }
+        const configPath = getUserSettingsPath();
+        const config = readOrCreateSettings(configPath);
         if (!config.models) config.models = {};
         config.models[tier] = modelName;
-        mkdirSync(join(homedir(), ".ccmini"), { recursive: true });
-        writeFileSync(configPath, JSON.stringify(config, null, 2));
+        writeSettingsFile(configPath, config);
 
         const cfg = getTierConfig(tier);
         printInfo(`Tier ${tier.toUpperCase()} → ${cfg.model}  [config]`);
@@ -160,21 +154,13 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
       const newModel = parts.join(" ");
       const result = agent.switchModel(newModel);
 
-      const configPath = join(homedir(), ".ccmini", "settings.json");
-      let config: any = {};
-      if (existsSync(configPath)) {
-        try {
-          config = JSON.parse(readFileSync(configPath, "utf-8"));
-        } catch {
-          // Ignore
-        }
-      }
+      const configPath = getUserSettingsPath();
+      const config = readOrCreateSettings(configPath);
       if (!config.models) config.models = {};
       config.models.pro = newModel;
       config.models.lite = newModel;
       config.models.mini = newModel;
-      mkdirSync(join(homedir(), ".ccmini"), { recursive: true });
-      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      writeSettingsFile(configPath, config);
 
       printInfo(`Switched to model: ${result.model} (saved to config)`);
       if (!result.known) {
@@ -251,16 +237,8 @@ interface ApiConfigInput {
 }
 
 function saveApiConfig(input: ApiConfigInput): void {
-  const configPath = join(homedir(), ".ccmini", "settings.json");
-  let config: any = {};
-
-  if (existsSync(configPath)) {
-    try {
-      config = JSON.parse(readFileSync(configPath, "utf-8"));
-    } catch {
-      // Ignore malformed config
-    }
-  }
+  const configPath = getUserSettingsPath();
+  const config = readOrCreateSettings(configPath);
 
   config.api = {
     provider: input.provider,
@@ -282,9 +260,7 @@ function saveApiConfig(input: ApiConfigInput): void {
     config.models.mini = input.proModel;
   }
 
-  const dir = join(homedir(), ".ccmini");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(configPath, JSON.stringify(config, null, 2));
+  writeSettingsFile(configPath, config);
 }
 
 // Legacy function for backward compatibility

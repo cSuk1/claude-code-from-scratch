@@ -41,6 +41,9 @@ import {
   printTokenUsage,
 } from "../ui/index.js";
 
+const CONTEXT_WINDOW_RESERVED_TOKENS = 20000;
+const AUTO_COMPACT_THRESHOLD = 0.85;
+
 interface AgentOptions {
   permissionMode?: PermissionMode;
   yolo?: boolean;
@@ -85,6 +88,15 @@ export class Agent {
   private anthropicBaseURL?: string;
 
   get model(): string { return this._model; }
+  get apiBaseConfig(): string | undefined { return this.apiBase; }
+  get apiKeyConfig(): string | undefined { return this.apiKey; }
+  get anthropicBaseURLConfig(): string | undefined { return this.anthropicBaseURL; }
+  get toolDefs(): ToolDef[] { return this.tools; }
+
+  addTokenUsage(input: number, output: number): void {
+    this.totalInputTokens += input;
+    this.totalOutputTokens += output;
+  }
 
   constructor(options: AgentOptions = {}) {
     this.permissionMode = options.permissionMode || (options.yolo ? "bypassPermissions" : "default");
@@ -95,7 +107,7 @@ export class Agent {
     this.maxTurns = options.maxTurns;
     this.confirmFn = options.confirmFn;
     this.askUserFn = options.askUserFn;
-    this.effectiveWindow = getContextWindow(this._model) - 20000;
+    this.effectiveWindow = getContextWindow(this._model) - CONTEXT_WINDOW_RESERVED_TOKENS;
     this.sessionId = randomUUID().slice(0, 8);
     this.sessionStartTime = new Date().toISOString();
 
@@ -165,7 +177,7 @@ export class Agent {
     if (newModel === this._model) return { model: this._model, known: true };
     const known = isInternalModel(newModel);
     this._model = newModel;
-    this.effectiveWindow = getContextWindow(newModel) - 20000;
+    this.effectiveWindow = getContextWindow(newModel) - CONTEXT_WINDOW_RESERVED_TOKENS;
     this.backend.updateModel(newModel);
     return { model: this._model, known };
   }
@@ -282,8 +294,8 @@ export class Agent {
       this.totalInputTokens += inputTokens;
       this.totalOutputTokens += outputTokens;
 
-      // auto compact conversation
-      if (inputTokens > this.effectiveWindow * 0.85) {
+      // auto compact conversation — use cumulative token count as proxy for context size
+      if (this.totalInputTokens > this.effectiveWindow * AUTO_COMPACT_THRESHOLD) {
         printInfo("Context window filling up, compacting conversation...");
         const compactModel = resolveSubAgentModel(BUILTIN_AGENT_TYPES.COMPACT).model;
         await this.backend.compactConversation(compactModel);

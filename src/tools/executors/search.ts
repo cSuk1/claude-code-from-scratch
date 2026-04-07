@@ -6,14 +6,21 @@ import { glob } from "glob";
 const MAX_GREP_RESULTS = 100;
 const MAX_GREP_SCAN_RESULTS = 200;
 const MAX_FILE_LIST_RESULTS = 200;
+const GREP_REGEX_TIMEOUT_MS = 5000;
 
 const isWin = process.platform === "win32";
 
+const commandAvailabilityCache = new Map<string, boolean>();
+
 export function checkCommandAvailable(cmd: string): boolean {
+  const cached = commandAvailabilityCache.get(cmd);
+  if (cached !== undefined) return cached;
   try {
-    execSync(`which ${cmd}`, { encoding: "utf-8", timeout: 1000 });
+    execFileSync("which", [cmd], { encoding: "utf-8", timeout: 1000 });
+    commandAvailabilityCache.set(cmd, true);
     return true;
   } catch {
+    commandAvailabilityCache.set(cmd, false);
     return false;
   }
 }
@@ -160,20 +167,40 @@ function grepWithGnuGrep(input: { pattern: string; path?: string; include?: stri
 }
 
 function grepJS(pattern: string, dir: string, include?: string): string {
-  const re = new RegExp(pattern);
+  // Guard against potentially dangerous regex patterns (ReDoS mitigation)
+  let re: RegExp;
+  try {
+    // Set a reasonable limit on pattern complexity
+    re = new RegExp(pattern);
+  } catch {
+    return `Error: invalid regex pattern: ${pattern}`;
+  }
+  // Quick ReDoS heuristic: reject patterns with excessive nested quantifiers
+  if ((pattern.match(/\(/g) || []).length > 10) {
+    return "Error: regex pattern too complex (potential ReDoS). Use simpler patterns or use ripgrep for advanced search.";
+  }
+
   const includeRe = include ? new RegExp(include.replace(/\*/g, ".*").replace(/\?/g, ".")) : null;
   const matches: string[] = [];
 
-  function walk(d: string) {
-    if (matches.length >= MAX_GREP_SCAN_RESULTS) return;
+  // Use iterative stack instead of recursion to avoid stack overflow on deep trees
+  const stack: string[] = [dir];
+  const startTime = Date.now();
+
+  while (stack.length > 0 && matches.length < MAX_GREP_SCAN_RESULTS) {
+    // Timeout protection against slow regex matching
+    if (Date.now() - startTime > GREP_REGEX_TIMEOUT_MS) break;
+
+    const d = stack.pop()!;
     let entries: string[];
     try {
       entries = readdirSync(d);
     } catch {
-      return;
+      continue;
     }
 
     for (const name of entries) {
+      if (matches.length >= MAX_GREP_SCAN_RESULTS) break;
       if (name.startsWith(".") || name === "node_modules") continue;
       const full = join(d, name);
       let st;
@@ -183,7 +210,7 @@ function grepJS(pattern: string, dir: string, include?: string): string {
         continue;
       }
       if (st.isDirectory()) {
-        walk(full);
+        stack.push(full);
         continue;
       }
       if (includeRe && !includeRe.test(name)) continue;
@@ -194,8 +221,10 @@ function grepJS(pattern: string, dir: string, include?: string): string {
         for (let i = 0; i < lines.length; i++) {
           if (re.test(lines[i])) {
             matches.push(`${full}:${i + 1}:${lines[i]}`);
-            if (matches.length >= MAX_GREP_SCAN_RESULTS) return;
+            if (matches.length >= MAX_GREP_SCAN_RESULTS) break;
           }
+          // Reset regex lastIndex since we're reusing the same RegExp object
+          re.lastIndex = 0;
         }
       } catch {
         // skip non-text files
@@ -203,7 +232,6 @@ function grepJS(pattern: string, dir: string, include?: string): string {
     }
   }
 
-  walk(dir);
   if (matches.length === 0) return "No matches found.";
   const shown = matches.slice(0, MAX_GREP_RESULTS);
   return shown.join("\n") +

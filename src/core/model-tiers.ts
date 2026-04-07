@@ -2,9 +2,8 @@
 //
 // Priority chain (high → low):
 //   1. Runtime switch  — /model pro <name> or agent.setTierModel()
-//   2. Environment vars — MINI_CLAUDE_MODEL_PRO / _LITE / _MINI
-//   3. Config file      — .ccmini/settings.json  { "models": { "pro": "...", ... } }
-//   4. Built-in defaults
+//   2. Config file      — .ccmini/settings.json  { "models": { "pro": "...", ... } }
+//   3. Built-in defaults
 //
 // Sub-agent task routing maps agent types to tiers automatically.
 

@@ -3,7 +3,6 @@ import { getSubAgentConfig, BUILTIN_AGENT_TYPES, type SubAgentType } from "../ex
 import { resolveSubAgentModel } from "./model-tiers.js";
 import type { ToolDef } from "../tools/tools.js";
 import { printSubAgentStart, printSubAgentEnd } from "../ui/index.js";
-import { printError } from "../ui/index.js";
 
 /**
  * Base interface for execution strategies
@@ -29,9 +28,9 @@ export class AgentStrategy implements ExecutionStrategy {
 
     const subAgent = new Agent({
       model: routing.model,
-      apiBase: agent["apiBase"] as string | undefined,
-      apiKey: agent["apiKey"] as string | undefined,
-      anthropicBaseURL: agent["anthropicBaseURL"] as string | undefined,
+      apiBase: agent.apiBaseConfig,
+      apiKey: agent.apiKeyConfig,
+      anthropicBaseURL: agent.anthropicBaseURLConfig,
       customSystemPrompt: config.systemPrompt,
       customTools: config.tools,
       isSubAgent: true,
@@ -40,11 +39,7 @@ export class AgentStrategy implements ExecutionStrategy {
 
     try {
       const result = await subAgent.runOnce(prompt);
-      // Aggregate token usage
-      const totalInput = agent["totalInputTokens"] as number;
-      const totalOutput = agent["totalOutputTokens"] as number;
-      (agent as any).totalInputTokens = totalInput + result.tokens.input;
-      (agent as any).totalOutputTokens = totalOutput + result.tokens.output;
+      agent.addTokenUsage(result.tokens.input, result.tokens.output);
       printSubAgentEnd(type, description);
       return result.text || "(Sub-agent produced no output)";
     } catch (e: any) {
@@ -67,17 +62,17 @@ export class SkillStrategy implements ExecutionStrategy {
 
     if (result.context === "fork") {
       const tools = result.allowedTools
-        ? (agent["tools"] as ToolDef[]).filter(t => result.allowedTools!.includes(t.name))
-        : (agent["tools"] as ToolDef[]).filter(t => t.name !== "agent");
+        ? agent.toolDefs.filter(t => result.allowedTools!.includes(t.name))
+        : agent.toolDefs.filter(t => t.name !== "agent");
 
       const routing = resolveSubAgentModel(BUILTIN_AGENT_TYPES.EXPLORE, result.model);
 
       printSubAgentStart("skill-fork", `${skillName} [${routing.tier}:${routing.model}]`);
       const subAgent = new Agent({
         model: routing.model,
-        apiBase: agent["apiBase"] as string | undefined,
-        apiKey: agent["apiKey"] as string | undefined,
-        anthropicBaseURL: agent["anthropicBaseURL"] as string | undefined,
+        apiBase: agent.apiBaseConfig,
+        apiKey: agent.apiKeyConfig,
+        anthropicBaseURL: agent.anthropicBaseURLConfig,
         customSystemPrompt: result.prompt,
         customTools: tools,
         isSubAgent: true,
@@ -86,10 +81,7 @@ export class SkillStrategy implements ExecutionStrategy {
 
       try {
         const subResult = await subAgent.runOnce(input.args || "Execute this skill task.");
-        const totalInput = agent["totalInputTokens"] as number;
-        const totalOutput = agent["totalOutputTokens"] as number;
-        (agent as any).totalInputTokens = totalInput + subResult.tokens.input;
-        (agent as any).totalOutputTokens = totalOutput + subResult.tokens.output;
+        agent.addTokenUsage(subResult.tokens.input, subResult.tokens.output);
         printSubAgentEnd("skill-fork", skillName);
         return subResult.text || "(Skill produced no output)";
       } catch (e: any) {

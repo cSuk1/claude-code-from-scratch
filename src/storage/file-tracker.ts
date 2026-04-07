@@ -1,7 +1,7 @@
 // File change tracker - tracks all file modifications by conversation turn
 // Supports reverting previous turns
 
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "fs";
 import { join } from "path";
 
 export interface FileChange {
@@ -84,7 +84,7 @@ export class FileChangeTracker {
     const errors: string[] = [];
 
     // Revert changes in reverse order (newest first)
-    for (const change of turn.changes.reverse()) {
+    for (const change of [...turn.changes].reverse()) {
       try {
         if (change.operation === "write_file") {
           if (change.fileExistedBefore) {
@@ -93,7 +93,6 @@ export class FileChangeTracker {
             reverted.push(change.file_path);
           } else {
             // File didn't exist before, delete it
-            const { unlinkSync } = require("fs");
             unlinkSync(change.file_path);
             reverted.push(change.file_path);
           }
@@ -150,7 +149,6 @@ export class FileChangeTracker {
     }, null, 2);
 
     const dir = join(process.cwd(), ".ccmini");
-    const { mkdirSync } = require("fs");
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }

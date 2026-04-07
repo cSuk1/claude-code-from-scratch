@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { existsSync, readFileSync, statSync } from "fs";
 import { join, relative, isAbsolute } from "path";
 
@@ -7,7 +7,7 @@ const isWin = process.platform === "win32";
 // Check if git is available
 function isGitAvailable(): boolean {
   try {
-    execSync("git --version", { encoding: "utf-8", timeout: 5000 });
+    execFileSync("git", ["--version"], { encoding: "utf-8", timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -16,15 +16,14 @@ function isGitAvailable(): boolean {
 
 function runGit(args: string[]): string {
   try {
-    const result = execSync(`git ${args.join(" ")}`, {
+    const result = execFileSync("git", args, {
       encoding: "utf-8",
       maxBuffer: 1024 * 1024,
       timeout: 30000,
-      shell: isWin ? "powershell.exe" : "/bin/sh",
     });
     return result.trim();
   } catch (e: any) {
-    const stderr = e.stderr?.trim() || e.message;
+    const stderr = (e.stderr?.toString() || "").trim() || e.message;
     // Git commands that fail gracefully return meaningful messages
     if (stderr) return stderr;
     return `Git error: ${e.message}`;

@@ -1,7 +1,7 @@
 import type { ParsedArgs } from "./args.js";
 import { printError } from "../ui/index.js";
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import { join, dirname } from "path";
 import { homedir } from "os";
 
 export interface ApiConfig {
@@ -17,6 +17,10 @@ interface ConfigFile {
     baseUrl?: string;
   };
   models?: Record<string, string>;
+  permissions?: {
+    allow?: string[];
+    deny?: string[];
+  };
   [key: string]: any;
 }
 
@@ -35,6 +39,61 @@ export function loadConfigFile(): ConfigFile | null {
     }
   }
   return null;
+}
+
+/**
+ * Load a settings file from a specific path.
+ * Returns null if file doesn't exist or is malformed.
+ */
+export function loadSettingsFile(filePath: string): ConfigFile | null {
+  if (!existsSync(filePath)) return null;
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read settings JSON from a specific path, returning a partial merge of all valid files.
+ * If no files exist, returns null.
+ */
+export function loadSettingsJson(filePath: string): any {
+  return loadSettingsFile(filePath);
+}
+
+/**
+ * Read the raw JSON object from a settings file (or empty object if not found).
+ * This is the common pattern used across permissions.ts and commands.ts.
+ */
+export function readOrCreateSettings(filePath: string): any {
+  if (!existsSync(filePath)) return {};
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Write settings to a file, creating parent directories as needed.
+ */
+export function writeSettingsFile(filePath: string, data: any): void {
+  const dir = dirname(filePath);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+}
+
+/** User-level settings path */
+export function getUserSettingsPath(): string {
+  return join(homedir(), ".ccmini", "settings.json");
+}
+
+/** Project-level settings path */
+export function getProjectSettingsPath(): string {
+  return join(process.cwd(), ".ccmini", "settings.json");
 }
 
 export function resolveApiConfig(args: ParsedArgs): ApiConfig {

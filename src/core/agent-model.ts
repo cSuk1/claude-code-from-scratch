@@ -10,7 +10,7 @@ export function getContextWindow(model: string): number {
 
 export function isInternalModel(model: string): boolean {
   const normalized = model.toLowerCase();
-  return MODEL_CONTEXT[model] !== undefined;
+  return Object.keys(MODEL_CONTEXT).some(k => k.toLowerCase() === normalized);
 }
 
 export function modelSupportsThinking(model: string): boolean {

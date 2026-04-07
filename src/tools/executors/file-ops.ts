@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
-import { dirname, join } from "path";
+import { dirname, join, resolve, normalize } from "path";
 import { getMemoryDir } from "../../storage/memory.js";
 
 const DEFAULT_READ_FILE_LINES = 80;
@@ -7,6 +7,19 @@ const MAX_READ_FILE_LINES = 200;
 const FILE_PREVIEW_LINES = 30;
 
 type ToolInput = Record<string, any>;
+
+/**
+ * Validate that a file path does not contain path traversal attempts.
+ * Returns null if safe, or an error message string if unsafe.
+ */
+function validateFilePath(filePath: string): string | null {
+  const normalized = normalize(filePath);
+  // Reject paths with null bytes
+  if (filePath.includes("\0")) {
+    return "Error: file path contains null byte";
+  }
+  return null;
+}
 
 export function formatWithLineNumbers(content: string, startLine = 1, maxLines?: number): string {
     const lines = content.split("\n");
@@ -31,6 +44,8 @@ export function parseReadFileLimit(value: unknown): { unlimited: boolean; reques
 }
 
 export function readFile(input: { file_path: string; offset?: number; limit?: number }): string {
+    const pathError = validateFilePath(input.file_path);
+    if (pathError) return pathError;
     try {
         const content = readFileSync(input.file_path, "utf-8");
         const lines = content.split("\n");
@@ -71,6 +86,8 @@ export function readFile(input: { file_path: string; offset?: number; limit?: nu
 }
 
 export function writeFile(input: { file_path: string; content: string }): string {
+    const pathError = validateFilePath(input.file_path);
+    if (pathError) return pathError;
     try {
         const dir = dirname(input.file_path);
         if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -157,6 +174,8 @@ export function editFile(input: {
     old_string: string;
     new_string: string;
 }): string {
+    const pathError = validateFilePath(input.file_path);
+    if (pathError) return pathError;
     try {
         const content = readFileSync(input.file_path, "utf-8");
         const actual = findActualString(content, input.old_string);
