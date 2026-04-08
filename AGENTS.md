@@ -133,6 +133,15 @@ export const toolDefinitions: ToolDefWithMeta[] = [{
 - Persistent rules via `.ccmini/settings.json` with allow/deny lists
 - Smart rule generation: compound commands (npm test*), file paths, wildcards
 
+#### REPL State Machine
+- 7-state FSM: `idle` → `processing` → `command_exec` → `confirming` → `asking_user` → `exit_pending` → `exited`
+- Three-layer architecture: types (`repl-states.ts`) → logic (`repl-statemachine.ts`) → bridge (`repl.ts`)
+- State machine is pure logic with zero I/O dependency; repl.ts bridges state transitions to readline/Agent
+- Event-driven: `dispatch(event)` queries transition table, updates state, notifies listeners, executes actions
+- Illegal transitions are silently ignored (type-safe at compile time, safe at runtime)
+- Promise bridging: `confirmFn`/`askUserFn` create pending Promises resolved by state transition handlers
+- SIGINT behavior is explicit per-state (e.g., abort in processing, auto-deny in confirming, exit on double in idle)
+
 ### Code Organization
 
 ```
@@ -143,7 +152,9 @@ src/
 │   ├── args.ts                   # Argument parsing
 │   ├── commands.ts               # Slash commands + /connect flow
 │   ├── config.ts                 # API config resolution
-│   └── repl.ts                   # Interactive REPL
+│   ├── repl-states.ts            # REPL state machine type definitions (states, events, transitions)
+│   ├── repl-statemachine.ts      # REPL state machine core logic (pure, zero I/O)
+│   └── repl.ts                   # REPL event bridge (state machine ↔ readline/Agent)
 │
 ├── core/                         # Core
 │   ├── agent.ts                  # Agent class (chat loop, tool execution)
@@ -220,7 +231,9 @@ src/
 - `src/extensions/subagent.ts` - Sub-agent system and custom agents
 - `src/extensions/skills.ts` - Skill discovery and execution
 - `src/storage/file-tracker.ts` - File change tracking and revert
-- `src/cli/repl.ts` - Interactive REPL
+- `src/cli/repl.ts` - REPL event bridge (state machine ↔ readline/Agent)
+- `src/cli/repl-statemachine.ts` - REPL state machine core logic
+- `src/cli/repl-states.ts` - REPL state machine type definitions
 
 ### Testing
 - Vitest configured (`vitest.config.ts`)

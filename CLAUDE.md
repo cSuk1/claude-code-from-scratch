@@ -22,7 +22,7 @@ Model configuration is done via `~/.ccmini/settings.json` or `.ccmini/settings.j
 
 ## Architecture
 
-A minimal TypeScript CLI agent (~3900 lines) that mirrors Claude Code's core architecture. ESM modules, strict mode, target ES2022.
+A minimal TypeScript CLI agent that mirrors Claude Code's core architecture. ESM modules, strict mode, target ES2022.
 
 ### Entry Flow
 
@@ -45,7 +45,9 @@ A minimal TypeScript CLI agent (~3900 lines) that mirrors Claude Code's core arc
 | **`src/core/model-tiers.ts`** | ~201 | Three-tier model hierarchy (pro/lite/mini) with priority chain configuration |
 | **`src/storage/session.ts`** | ~64 | Session save/load persistence |
 | **`src/cli/commands.ts`** | ~344 | REPL slash command registry, `/connect` interactive setup |
-| **`src/cli/repl.ts`** | ~223 | Interactive REPL with tab completion and SIGINT handling |
+| **`src/cli/repl.ts`** | ~230 | REPL event bridge: state machine ↔ readline/Agent, tab completion, SIGINT |
+| **`src/cli/repl-statemachine.ts`** | ~197 | REPL state machine core: 7-state FSM with transition table, zero I/O dependency |
+| **`src/cli/repl-states.ts`** | ~44 | REPL state machine types: ReplState, ReplEvent, Transition |
 | **`src/tools/definitions.ts`** | ~448 | 21 tool definitions with metadata (parallelSafe, idempotent) in Anthropic `input_schema` format |
 | **`src/cli/config.ts`** | ~80 | API config resolution from settings files |
 | **`src/core/agent-retry.ts`** | ~35 | Exponential backoff retry for 429/503/529/timeout |
@@ -65,7 +67,9 @@ src/
 │   ├── args.ts               # Argument parsing
 │   ├── commands.ts           # Slash command registry + /connect flow
 │   ├── config.ts             # API config resolution
-│   └── repl.ts               # Interactive REPL loop
+│   ├── repl-states.ts        # REPL state machine type definitions
+│   ├── repl-statemachine.ts  # REPL state machine core (pure, zero I/O)
+│   └── repl.ts               # REPL event bridge (FSM ↔ readline/Agent)
 ├── core/
 │   ├── agent.ts              # Agent class (chat loop, tool execution)
 │   ├── agent-model.ts        # Model context windows, thinking support
@@ -176,6 +180,23 @@ Agent type → tier routing:
 
 Custom agents via `.ccmini/agents/<name>.md` with YAML frontmatter (`name`, `description`, `allowed-tools`, `model`).
 
+### REPL State Machine
+
+The REPL is driven by a 7-state finite state machine. All control flow is managed through an explicit transition table, making behavior deterministic and testable.
+
+**States:** `idle` → `processing` → `command_exec` → `confirming` → `asking_user` → `exit_pending` → `exited`
+
+**Three-layer architecture:**
+1. **Type layer** (`repl-states.ts`) — `ReplState`, `ReplEvent`, `Transition` type definitions
+2. **Logic layer** (`repl-statemachine.ts`) — Pure FSM: `dispatch(event)` queries transition table, updates state, notifies `onTransition` listeners, executes side-effect actions. Zero I/O dependency.
+3. **Bridge layer** (`repl.ts`) — Maps state transitions to I/O behavior (readline pause/resume, Agent.chat, showMenu). Agent's `confirmFn`/`askUserFn` create pending Promises resolved by transition handlers.
+
+**Key design:**
+- Illegal transitions (e.g., `CONFIRM_RESULT` in `idle`) are silently ignored — type-safe at compile time, safe at runtime
+- SIGINT has explicit per-state behavior: abort in `processing`, auto-deny in `confirming`, auto-empty in `asking_user`, exit on double in `idle`
+- Slash commands cascade: `USER_INPUT("/help")` → `command_exec` + auto-dispatch `SLASH_COMMAND`
+- Fully unit-testable: `ReplStateMachine` has 34 tests covering all states and transitions
+
 ### Streaming Architecture
 
 Both backends implement `streamChunk()` as an `AsyncGenerator<StreamChunk>` that yields chunks in real-time:
@@ -233,3 +254,4 @@ Skills are defined in `.ccmini/skills/<name>/SKILL.md` with YAML frontmatter:
 - Config directory is `.ccmini/` (skills, agents, settings).
 - Strategy pattern used for `agent` and `skill` tools via `agent-strategies.ts`.
 - 21 built-in tools with metadata: `parallelSafe` and `idempotent` flags for automatic parallel execution optimization.
+- REPL uses a finite state machine (`ReplStateMachine`) — never manipulate readline or Agent state directly from transition handlers; always dispatch events through the state machine.

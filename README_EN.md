@@ -29,6 +29,7 @@
 - **Session Persistence** — Auto-save/restore sessions with `--resume` support
 - **File Change Tracking** — Per-turn change recording with `/revert` for one-click undo
 - **Memory System** — 4-type persistent file-based memory (user / feedback / project / reference)
+- **REPL State Machine** — 7-state finite state machine driving REPL control flow with centralized, explicit state transitions, zero-dependency pure implementation
 - **API Retry** — Exponential backoff auto-retry for 429 / 503 / 529 / timeouts
 - **Tab Completion** — Tab auto-completion for commands and skills in REPL mode
 
@@ -259,12 +260,45 @@ model: lite
 You are a code review expert. Review code for bugs, security vulnerabilities, and performance issues.
 ```
 
+## REPL State Machine
+
+The REPL is driven by a 7-state finite state machine with all control flow managed through an explicit state transition table:
+
+```
+  idle ──(user input)──→ processing
+    │                       │
+    ├──(/command)──→ command_exec ──→ idle
+    │                       │
+    │                  (needs confirm)
+    │                       ├──→ confirming ──→ processing
+    │                       │
+    │                  (asks user)
+    │                       ├──→ asking_user ──→ processing
+    │                       │
+    │                  (stream done)
+    │                       └──→ idle
+    │
+    ├──(Ctrl+C)──→ exit_pending ──(Ctrl+C)──→ exited
+```
+
+| State | Description |
+|-------|-------------|
+| `idle` | Waiting for user input |
+| `processing` | Agent is streaming a response |
+| `command_exec` | Executing a slash command or skill |
+| `confirming` | Waiting for user to allow/deny a tool action |
+| `asking_user` | Waiting for user to answer an `ask_user` prompt |
+| `exit_pending` | First Ctrl+C pressed, waiting for second to exit |
+| `exited` | Terminal state, process is exiting |
+
+Three-layer architecture: **Type layer** (`repl-states.ts`) defines states/events → **Logic layer** (`repl-statemachine.ts`) pure state machine, zero I/O dependency → **Bridge layer** (`repl.ts`) connects state machine to readline/Agent.
+
 ## Project Structure
 
 ```
 src/
 ├── cli.ts                # Entry point
-├── cli/                  # CLI (args, REPL, commands)
+├── cli/                  # CLI (args, REPL state machine, commands)
 ├── core/                 # Core (Agent, compression, model tiers, prompts)
 ├── backend/              # API backends (Anthropic / OpenAI)
 ├── mcp/                  # MCP protocol (client, manager, transport, config)

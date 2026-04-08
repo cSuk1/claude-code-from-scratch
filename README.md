@@ -29,6 +29,7 @@
 - **会话持久化** — 自动保存/恢复会话，支持 `--resume` 续接
 - **文件变更追踪** — 按轮次记录文件变更，支持 `/revert` 一键撤销
 - **记忆系统** — 4 种类型的持久化文件记忆（user / feedback / project / reference）
+- **REPL 状态机架构** — 7 状态有限状态机驱动 REPL 控制流，状态转换集中管理、显式可推导，零依赖纯实现
 - **API 重试** — 指数退避自动重试（429 / 503 / 529 / 超时）
 - **Tab 补全** — REPL 模式下按 Tab 自动补全命令和技能
 
@@ -259,12 +260,45 @@ model: lite
 你是一个代码审查专家。审查代码中的 bug、安全漏洞和性能问题。
 ```
 
+## REPL 状态机
+
+REPL 由一个 7 状态有限状态机驱动，所有控制流通过显式的状态转换表管理：
+
+```
+  idle ──(用户输入)──→ processing
+    │                      │
+    ├──(/command)──→ command_exec ──→ idle
+    │                      │
+    │                 (需要确认)
+    │                      ├──→ confirming ──→ processing
+    │                      │
+    │                 (询问用户)
+    │                      ├──→ asking_user ──→ processing
+    │                      │
+    │                 (流式完成)
+    │                      └──→ idle
+    │
+    ├──(Ctrl+C)──→ exit_pending ──(Ctrl+C)──→ exited
+```
+
+| 状态 | 说明 |
+|------|------|
+| `idle` | 等待用户输入 |
+| `processing` | Agent 正在流式输出 |
+| `command_exec` | 执行斜杠命令或技能 |
+| `confirming` | 等待用户允许/拒绝工具操作 |
+| `asking_user` | 等待用户回答 `ask_user` 提问 |
+| `exit_pending` | 首次 Ctrl+C，等待第二次确认退出 |
+| `exited` | 终态，进程退出 |
+
+三层架构：**类型层**（`repl-states.ts`）定义状态/事件 → **逻辑层**（`repl-statemachine.ts`）纯状态机，零 I/O 依赖 → **桥接层**（`repl.ts`）连接状态机与 readline/Agent。
+
 ## 项目结构
 
 ```
 src/
 ├── cli.ts                # 入口
-├── cli/                  # CLI（参数解析、REPL、命令）
+├── cli/                  # CLI（参数解析、REPL 状态机、命令）
 ├── core/                 # 核心（Agent、压缩、模型分层、提示词）
 ├── backend/              # API 后端（Anthropic / OpenAI）
 ├── mcp/                  # MCP 协议（客户端、管理器、传输、配置）
