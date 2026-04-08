@@ -128,6 +128,15 @@ export function checkPermission(
     return { action: "deny", message: `Blocked in plan mode: ${toolName}` };
   }
 
+  // MCP tools require confirmation by default (arbitrary external code)
+  if (toolName.startsWith("mcp__")) {
+    if (mode === "acceptEdits") return { action: "allow" };
+    if (mode === "dontAsk") {
+      return { action: "deny", message: `Auto-denied (dontAsk mode): MCP tool ${toolName}` };
+    }
+    return { action: "confirm", message: `MCP tool: ${toolName}` };
+  }
+
   if (mode === "acceptEdits" && WRITE_TOOLS.has(toolName)) {
     return { action: "allow" };
   }

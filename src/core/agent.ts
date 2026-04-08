@@ -20,6 +20,7 @@ import { toolStrategies } from "./agent-strategies.js";
 import { resolveSubAgentModel } from "./model-tiers.js";
 import { BUILTIN_AGENT_TYPES } from "../extensions/subagent.js";
 import { initFileTracker, getTracker, clearTracker } from "../storage/file-tracker.js";
+import type { MCPClientManager } from "../mcp/index.js";
 import {
   printAssistantText,
   printToolCall,
@@ -58,6 +59,7 @@ interface AgentOptions {
   customSystemPrompt?: string;
   customTools?: ToolDef[];
   isSubAgent?: boolean;
+  mcpManager?: MCPClientManager;
 }
 
 export class Agent {
@@ -74,6 +76,7 @@ export class Agent {
   private sessionId: string;
   private sessionStartTime: string;
   private isSubAgent: boolean;
+  private mcpManager?: MCPClientManager;
 
   private maxTurns?: number;
   private currentTurns = 0;
@@ -92,6 +95,7 @@ export class Agent {
   get apiKeyConfig(): string | undefined { return this.apiKey; }
   get anthropicBaseURLConfig(): string | undefined { return this.anthropicBaseURL; }
   get toolDefs(): ToolDef[] { return this.tools; }
+  get mcp(): MCPClientManager | undefined { return this.mcpManager; }
 
   addTokenUsage(input: number, output: number): void {
     this.totalInputTokens += input;
@@ -103,7 +107,7 @@ export class Agent {
     this.thinking = options.thinking || false;
     this._model = options.model || getModelForTier("pro");
     this.isSubAgent = options.isSubAgent || false;
-    this.tools = options.customTools || toolDefinitions;
+    this.mcpManager = options.mcpManager;
     this.maxTurns = options.maxTurns;
     this.confirmFn = options.confirmFn;
     this.askUserFn = options.askUserFn;
@@ -118,6 +122,15 @@ export class Agent {
     this.apiBase = options.apiBase;
     this.apiKey = options.apiKey;
     this.anthropicBaseURL = options.anthropicBaseURL;
+
+    // Build tool list: customTools > builtin + MCP tools
+    if (options.customTools) {
+      this.tools = options.customTools;
+    } else {
+      const builtinTools = toolDefinitions;
+      const mcpTools = this.mcpManager?.getAllToolDefinitions() || [];
+      this.tools = [...builtinTools, ...mcpTools];
+    }
 
     let sysPrompt = options.customSystemPrompt || buildSystemPrompt();
     if (this.permissionMode === "plan") {
@@ -544,6 +557,11 @@ export class Agent {
       return strategy.execute(this, input);
     }
     if (name === "ask_user") return this.executeAskUserTool(input);
+    // Route MCP tools to MCPClientManager
+    if (this.mcpManager?.isMCPTool(name)) {
+      const result = await this.mcpManager.executeTool(name, input);
+      return result || `Error: MCP tool "${name}" returned no result`;
+    }
     return executeTool(name, input);
   }
 
@@ -600,5 +618,9 @@ export class Agent {
       this.unsubscribeTaskStore = undefined;
     }
     clearTracker();
+    // Shutdown MCP connections (fire-and-forget in sync destroy)
+    if (this.mcpManager && !this.isSubAgent) {
+      this.mcpManager.shutdown().catch(() => {});
+    }
   }
 }

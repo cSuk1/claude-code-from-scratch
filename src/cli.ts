@@ -8,6 +8,7 @@ import { resolveApiConfig } from "./cli/config.js";
 import { runRepl } from "./cli/repl.js";
 import { initModelTiers } from "./core/model-tiers.js";
 import { runConnectFlow } from "./cli/commands.js";
+import { MCPClientManager, loadMCPConfigs } from "./mcp/index.js";
 
 async function main() {
   const args = parseArgs();
@@ -22,11 +23,19 @@ async function main() {
 
   initModelTiers();
 
+  // Initialize MCP servers from config
+  const mcpManager = new MCPClientManager();
+  const mcpConfigs = loadMCPConfigs();
+  if (Object.keys(mcpConfigs).length > 0) {
+    await mcpManager.init(mcpConfigs);
+  }
+
   const agent = new Agent({
     permissionMode, model, thinking, maxTurns,
     apiBase: useOpenAI ? apiBase : undefined,
     anthropicBaseURL: !useOpenAI ? apiBase : undefined,
     apiKey,
+    mcpManager,
   });
 
   if (resume) {

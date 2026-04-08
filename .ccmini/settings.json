@@ -21,8 +21,21 @@
       "write_file(/Users/caixing/go/claude-code-mini/doc/ARCHITECTURE.md)",
       "run_shell(git remote*)",
       "run_shell(cd *)",
-      "write_file(/Users/caixing/go/claude-code-mini/*)"
+      "write_file(/Users/caixing/go/claude-code-mini/*)",
+      "mcp__filesystem__list_allowed_directories",
+      "mcp__filesystem__list_directory"
     ],
     "deny": []
+  },
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/caixing/go/claude-code-mini"
+      ],
+      "disabled": false
+    }
   }
 }

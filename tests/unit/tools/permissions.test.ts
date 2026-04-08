@@ -167,6 +167,40 @@ describe("permissions", () => {
     });
   });
 
+  describe("checkPermission - MCP tools", () => {
+    it("should require confirmation for MCP tools in default mode", () => {
+      const result = checkPermission("mcp__filesystem__read_file", {}, "default");
+      expect(result.action).toBe("confirm");
+      expect(result.message).toContain("MCP tool");
+    });
+
+    it("should require confirmation for any mcp__ prefixed tool", () => {
+      const result = checkPermission("mcp__remote__search", { query: "test" }, "default");
+      expect(result.action).toBe("confirm");
+    });
+
+    it("should allow MCP tools in acceptEdits mode", () => {
+      const result = checkPermission("mcp__filesystem__read_file", {}, "acceptEdits");
+      expect(result.action).toBe("allow");
+    });
+
+    it("should deny MCP tools in dontAsk mode", () => {
+      const result = checkPermission("mcp__filesystem__read_file", {}, "dontAsk");
+      expect(result.action).toBe("deny");
+      expect(result.message).toContain("dontAsk");
+    });
+
+    it("should allow MCP tools in bypassPermissions mode", () => {
+      const result = checkPermission("mcp__filesystem__read_file", {}, "bypassPermissions");
+      expect(result.action).toBe("allow");
+    });
+
+    it("should require confirmation for MCP tools in plan mode", () => {
+      const result = checkPermission("mcp__filesystem__read_file", {}, "plan");
+      expect(result.action).toBe("confirm");
+    });
+  });
+
   describe("generatePermissionRule", () => {
     it("should generate wildcard rule for run_shell", () => {
       const rule = generatePermissionRule("run_shell", { command: "npm test" });

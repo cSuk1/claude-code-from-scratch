@@ -2,6 +2,7 @@ import chalk from "chalk";
 import stringWidth from "string-width";
 import stripAnsi from "strip-ansi";
 import { C } from "./colors.js";
+import { VERSION } from "../version.js";
 
 function visWidth(s: string): number {
   return stringWidth(stripAnsi(s));
@@ -41,7 +42,7 @@ export function printWelcome(model?: string) {
   const bot = C.border("  ╰" + "─".repeat(width + 2) + "╯");
   const empty = boxEmpty(width);
 
-  const title = C.brand("✻ Claude Code Mini") + "  " + C.muted("v1.1.0");
+  const title = C.brand("✻ Claude Code Mini") + "  " + C.muted(`v${VERSION}`);
   const titleLine = boxLine(title, width);
 
   const lines = [top, empty, titleLine, empty];

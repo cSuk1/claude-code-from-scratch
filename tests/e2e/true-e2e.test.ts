@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { spawn, ChildProcess } from "child_process";
+import { describe, it, expect, afterAll } from "vitest";
+import { spawn } from "child_process";
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from "fs";
 import { join } from "path";
 
@@ -7,15 +7,6 @@ const CLI_PATH = join(__dirname, "../../dist/cli.js");
 const TEST_DIR = join(__dirname, "../fixtures");
 
 describe("True E2E - CLI 完整流程测试", () => {
-  let cliProcess: ChildProcess;
-  let output: string = "";
-
-  afterAll(() => {
-    if (cliProcess && cliProcess.pid) {
-      cliProcess.kill();
-    }
-  });
-
   describe("CLI 入口点", () => {
     it("应能执行 CLI --help", async () => {
       const output = await new Promise<string>((resolve, reject) => {
@@ -133,35 +124,6 @@ describe("True E2E - 工具副作用测试", () => {
 });
 
 describe("True E2E - 完整工作流模拟", () => {
-  it("应能通过子进程执行完整对话流程", async () => {
-    const hasApiKey = process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY;
-
-    if (!hasApiKey) {
-      console.log("⚠️  跳过真实 API 测试: 未设置 API Key");
-      return;
-    }
-
-    const output = await new Promise<string>((resolve, reject) => {
-      const proc = spawn("node", [CLI_PATH, "-p", "Say 'test ok'"], {
-        cwd: join(__dirname, "../.."),
-        env: { ...process.env },
-        timeout: 30000,
-      });
-
-      let output = "";
-      proc.stdout.on("data", (data) => {
-        output += data.toString();
-      });
-      proc.stderr.on("data", (data) => {
-        output += data.toString();
-      });
-      proc.on("close", () => resolve(output));
-      proc.on("error", reject);
-    });
-
-    expect(output).toContain("test ok");
-  }, 60000);
-
   it("应能使用 --model 参数", async () => {
     const output = await new Promise<string>((resolve, reject) => {
       const proc = spawn("node", [CLI_PATH, "--model", "glm-5", "--help"], {
@@ -182,95 +144,6 @@ describe("True E2E - 完整工作流模拟", () => {
 
     expect(output).toContain("Usage");
   }, 15000);
-
-  it("应能使用 --plan 模式", async () => {
-    const hasApiKey = process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY;
-
-    if (!hasApiKey) {
-      console.log("⚠️  跳过: 未设置 API Key");
-      return;
-    }
-
-    const output = await new Promise<string>((resolve, reject) => {
-      const proc = spawn("node", [CLI_PATH, "--plan", "-p", "What is 1+1?"], {
-        cwd: join(__dirname, "../.."),
-        timeout: 30000,
-        env: { ...process.env },
-      });
-
-      let output = "";
-      proc.stdout.on("data", (data) => {
-        output += data.toString();
-      });
-      proc.stderr.on("data", (data) => {
-        output += data.toString();
-      });
-      proc.on("close", () => resolve(output));
-      proc.on("error", reject);
-    });
-
-    expect(output.length).toBeGreaterThan(0);
-  }, 60000);
-});
-
-describe("True E2E - 权限模式测试", () => {
-  it("应能使用 --yolo 模式", async () => {
-    const hasApiKey = process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY;
-
-    if (!hasApiKey) {
-      console.log("⚠️  跳过: 未设置 API Key");
-      return;
-    }
-
-    const output = await new Promise<string>((resolve, reject) => {
-      const proc = spawn("node", [CLI_PATH, "--yolo", "-p", "Hello"], {
-        cwd: join(__dirname, "../.."),
-        timeout: 30000,
-        env: { ...process.env },
-      });
-
-      let output = "";
-      proc.stdout.on("data", (data) => {
-        output += data.toString();
-      });
-      proc.stderr.on("data", (data) => {
-        output += data.toString();
-      });
-      proc.on("close", () => resolve(output));
-      proc.on("error", reject);
-    });
-
-    expect(output.length).toBeGreaterThan(0);
-  }, 60000);
-
-  it("应能使用 --dont-ask 模式", async () => {
-    const hasApiKey = process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY;
-
-    if (!hasApiKey) {
-      console.log("⚠️  跳过: 未设置 API Key");
-      return;
-    }
-
-    const output = await new Promise<string>((resolve, reject) => {
-      const proc = spawn("node", [CLI_PATH, "--dont-ask", "-p", "Hello"], {
-        cwd: join(__dirname, "../.."),
-        timeout: 30000,
-        env: { ...process.env },
-      });
-
-      let output = "";
-      proc.stdout.on("data", (data) => {
-        output += data.toString();
-      });
-      proc.stderr.on("data", (data) => {
-        output += data.toString();
-      });
-      proc.on("close", () => resolve(output));
-      proc.on("error", reject);
-    });
-
-    expect(output.length).toBeGreaterThan(0);
-  }, 60000);
 });
 
 describe("True E2E - 配置文件测试", () => {

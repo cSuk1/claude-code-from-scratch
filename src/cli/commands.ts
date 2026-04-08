@@ -225,6 +225,51 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
       }
     },
   });
+
+  registry.register({
+    name: "mcp",
+    description: "Manage MCP servers (list status, reload)",
+    usage: "/mcp [reload [name]]",
+    hasArgs: true,
+    handler: async (agent, args) => {
+      const mcp = agent.mcp;
+      if (!mcp) {
+        printInfo("No MCP servers configured.");
+        return;
+      }
+
+      const parts = args.trim().split(/\s+/).filter(Boolean);
+
+      if (parts[0] === "reload") {
+        if (parts[1]) {
+          await mcp.reconnect(parts[1]);
+        } else {
+          await mcp.reconnectAll();
+        }
+        return;
+      }
+
+      // Default: show server status
+      const servers = mcp.getServerInfo();
+      if (servers.length === 0) {
+        printInfo("No MCP servers configured.");
+        return;
+      }
+
+      console.log("");
+      console.log("  MCP Servers:\n");
+      for (const s of servers) {
+        const statusIcon = s.status === "connected" ? "✓" : s.status === "error" ? "✗" : "○";
+        const toolInfo = s.toolsCount > 0 ? `${s.toolsCount} tools` : "no tools";
+        const errorInfo = s.error ? ` — ${s.error}` : "";
+        console.log(`    ${statusIcon} ${s.name}  (${s.status}, ${toolInfo})${errorInfo}`);
+      }
+      console.log("");
+      console.log(`  Total: ${mcp.totalTools} MCP tools available`);
+      console.log("  Usage: /mcp reload [name]  to reconnect");
+      console.log("");
+    },
+  });
 }
 
 interface ApiConfigInput {
