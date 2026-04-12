@@ -1,8 +1,11 @@
-import { Agent } from "./agent.js";
-import { getSubAgentConfig, BUILTIN_AGENT_TYPES, type SubAgentType } from "../extensions/subagent.js";
-import { resolveSubAgentModel } from "./model-tiers.js";
-import type { ToolDef } from "../tools/tools.js";
-import { printSubAgentStart, printSubAgentEnd } from "../ui/index.js";
+// Execution strategies — sub-agent and skill execution via forked Agent instances.
+// Moved from core/agent-strategies.ts to core/execution/ for cohesion with tool-executor.
+
+import { Agent } from "../agent.js";
+import { getSubAgentConfig, BUILTIN_AGENT_TYPES, type SubAgentType } from "../../extensions/subagent.js";
+import { resolveSubAgentModel } from "../models/model-tiers.js";
+import type { ToolDef } from "../../tools/tools.js";
+import { printSubAgentStart, printSubAgentEnd } from "../../ui/index.js";
 
 /**
  * Base interface for execution strategies
@@ -54,7 +57,7 @@ export class AgentStrategy implements ExecutionStrategy {
  */
 export class SkillStrategy implements ExecutionStrategy {
   async execute(agent: Agent, input: Record<string, any>): Promise<string> {
-    const { executeSkill } = await import("../extensions/skills.js");
+    const { executeSkill } = await import("../../extensions/skills.js");
     const skillName = input.skill_name;
     const result = executeSkill(skillName, input.args || "");
 

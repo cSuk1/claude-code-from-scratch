@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isRetryable, withRetry } from "../../../src/core/agent-retry.js";
+import { isRetryable, withRetry } from "../../../src/backend/retry.js";
 
 describe("agent-retry", () => {
   describe("isRetryable", () => {

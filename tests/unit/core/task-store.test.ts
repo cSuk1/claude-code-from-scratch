@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { taskStore, TaskStore } from "../../../src/core/task-store.js";
+import { taskStore, TaskStore } from "../../../src/core/runtime/task-store.js";
 
 describe("TaskStore", () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { CompressionPipeline, SNIP_PLACEHOLDER, SNIP_THRESHOLD, KEEP_RECENT_RESULTS, OLD_RESULT_PLACEHOLDER } from "../../../src/core/compress.js";
+import { CompressionPipeline, SNIP_PLACEHOLDER, SNIP_THRESHOLD, KEEP_RECENT_RESULTS, OLD_RESULT_PLACEHOLDER } from "../../../src/core/runtime/compress.js";
 
 describe("CompressionPipeline", () => {
   const effectiveWindow = 100000;

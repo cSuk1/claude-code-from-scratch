@@ -124,6 +124,8 @@ export class ReplStateMachine {
 
   private fromCommandExec(event: ReplEvent): Transition | null {
     switch (event.type) {
+      case "SLASH_COMMAND":
+        return { next: "command_exec" };
       case "PROCESSING_DONE":
       case "PROCESSING_ERROR":
         return { next: "idle" };

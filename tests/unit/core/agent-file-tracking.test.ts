@@ -88,6 +88,7 @@ vi.mock("../../../src/extensions/subagent.js", () => ({
     GENERAL: "general",
     COMPACT: "compact",
   },
+  buildAgentDescriptions: vi.fn().mockReturnValue(""),
 }));
 
 vi.mock("../../../src/backend/index.js", () => {
@@ -110,7 +111,7 @@ vi.mock("../../../src/backend/index.js", () => {
   };
 });
 
-vi.mock("../../../src/core/compress.js", () => ({
+vi.mock("../../../src/core/runtime/compress.js", () => ({
   CompressionPipeline: class {
     runAnthropic = vi.fn();
     runOpenAI = vi.fn();
@@ -118,7 +119,7 @@ vi.mock("../../../src/core/compress.js", () => ({
   },
 }));
 
-vi.mock("../../../src/core/agent-strategies.js", () => ({
+vi.mock("../../../src/core/execution/strategies.js", () => ({
   toolStrategies: {
     anthropic: { budget: vi.fn(), snip: vi.fn(), microcompact: vi.fn() },
     openai: { budget: vi.fn(), snip: vi.fn(), microcompact: vi.fn() },

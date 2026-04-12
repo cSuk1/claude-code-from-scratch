@@ -7,9 +7,9 @@
     "claude-code-mini": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc && mkdir -p dist/templates && cp src/templates/system-prompt.md src/templates/plan-mode-prompt.md dist/templates/",
+    "build": "rm -rf dist && tsc && mkdir -p dist/templates && cp src/templates/system-prompt.md src/templates/plan-mode-prompt.md dist/templates/",
     "start": "node dist/cli.js",
-    "dev": "tsc && mkdir -p dist/templates && cp src/templates/system-prompt.md src/templates/plan-mode-prompt.md dist/templates/ && node dist/cli.js",
+    "dev": "rm -rf dist && tsc && mkdir -p dist/templates && cp src/templates/system-prompt.md src/templates/plan-mode-prompt.md dist/templates/ && node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

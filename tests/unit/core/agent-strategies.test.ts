@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ToolStrategyRegistry, AgentStrategy, SkillStrategy, toolStrategies } from "../../../src/core/agent-strategies.js";
+import { ToolStrategyRegistry, AgentStrategy, SkillStrategy, toolStrategies } from "../../../src/core/execution/strategies.js";
 
 // Mock heavy dependencies before importing
 vi.mock("../../../src/extensions/subagent.js", () => ({
@@ -11,7 +11,7 @@ vi.mock("../../../src/extensions/subagent.js", () => ({
   }),
 }));
 
-vi.mock("../../../src/core/model-tiers.js", () => ({
+vi.mock("../../../src/core/models/model-tiers.js", () => ({
   resolveSubAgentModel: vi.fn().mockReturnValue({ tier: "pro", model: "test-model", source: "default" }),
 }));
 

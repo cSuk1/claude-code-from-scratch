@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { ToolDef } from "../tools/tools.js";
-import { withRetry } from "../core/agent-retry.js";
-import type { CompressionPipeline } from "../core/compress.js";
+import { withRetry } from "./retry.js";
+import type { CompressionPipeline } from "../core/runtime/compress.js";
 import type { MessageHandler, StreamResult, BackendConfig, ToolResultEntry, StreamChunk } from "./backend-types.js";
 
 function toOpenAITools(tools: ToolDef[]): OpenAI.ChatCompletionTool[] {

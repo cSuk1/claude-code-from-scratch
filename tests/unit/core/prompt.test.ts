@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { buildSystemPrompt, loadPlanModePrompt, loadClaudeMd, getGitContext } from "../../../src/core/prompt.js";
+import { buildSystemPrompt, loadPlanModePrompt, loadClaudeMd, getGitContext } from "../../../src/core/prompt/index.js";
 import { existsSync } from "fs";
 import { join } from "path";
 

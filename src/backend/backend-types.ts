@@ -1,5 +1,5 @@
 import type { ToolDef } from "../tools/tools.js";
-import type { CompressionPipeline } from "../core/compress.js";
+import type { CompressionPipeline } from "../core/runtime/compress.js";
 
 export interface StreamChunk {
   content?: string;

@@ -1,3 +1,6 @@
+// Retry logic — exponential backoff for transient API errors.
+// Moved from core/agent-retry.ts to backend/ where it actually belongs.
+
 export interface RetryOptions {
   signal?: AbortSignal;
   maxRetries?: number;

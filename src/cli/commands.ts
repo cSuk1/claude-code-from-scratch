@@ -9,7 +9,7 @@ import {
   formatTierInfo,
   getModelForTier,
   type ModelTier,
-} from "../core/model-tiers.js";
+} from "../core/models/model-tiers.js";
 import {
   getUserSettingsPath,
   readOrCreateSettings,
@@ -353,7 +353,12 @@ export async function runConnectFlow(agent?: Agent): Promise<void> {
   printInfo(`Saved configuration to ~/.ccmini/settings.json`);
 
   if (agent) {
-    agent.switchModel(proModel);
+    agent.reconnect({
+      provider: choice as "anthropic" | "openai",
+      baseUrl: baseUrl || undefined,
+      apiKey,
+      model: proModel,
+    });
     setTierModel("pro", proModel);
     if (liteModel) setTierModel("lite", liteModel);
     if (miniModel) setTierModel("mini", miniModel);

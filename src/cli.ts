@@ -6,7 +6,7 @@ import { loadSession, getLatestSessionId } from "./storage/session.js";
 import { parseArgs } from "./cli/args.js";
 import { resolveApiConfig } from "./cli/config.js";
 import { runRepl } from "./cli/repl.js";
-import { initModelTiers } from "./core/model-tiers.js";
+import { initModelTiers } from "./core/models/model-tiers.js";
 import { runConnectFlow } from "./cli/commands.js";
 import { MCPClientManager, loadMCPConfigs } from "./mcp/index.js";
 

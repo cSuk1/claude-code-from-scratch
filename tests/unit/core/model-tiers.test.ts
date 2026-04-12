@@ -10,7 +10,7 @@ import {
   resetModelTiers,
   initModelTiers,
   type ModelTier,
-} from "../../../src/core/model-tiers.js";
+} from "../../../src/core/models/model-tiers.js";
 
 describe("model-tiers", () => {
   beforeEach(() => {

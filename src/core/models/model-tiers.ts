@@ -10,7 +10,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import { BUILTIN_AGENT_TYPES, type BuiltinAgentType } from "../extensions/subagent.js";
+import { BUILTIN_AGENT_TYPES, type BuiltinAgentType } from "../../extensions/subagent.js";
 
 // ─── Types ──────────────────────────────────────────────────
 

@@ -37,19 +37,19 @@ describe("Agent 集成测试 - AgentModel 模块", () => {
   });
 
   it("应能导入 agent-model 模块", async () => {
-    const agentModel = await import("../../src/core/agent-model.js");
+    const agentModel = await import("../../src/core/models/agent-model.js");
     expect(agentModel).toBeDefined();
   });
 
   it("getContextWindow 应返回有效的上下文窗口大小", async () => {
-    const { getContextWindow } = await import("../../src/core/agent-model.js");
+    const { getContextWindow } = await import("../../src/core/models/agent-model.js");
 
     const window = getContextWindow("glm-5");
     expect(window).toBeGreaterThan(0);
   });
 
   it("isInternalModel 应正确识别内部模型", async () => {
-    const { isInternalModel } = await import("../../src/core/agent-model.js");
+    const { isInternalModel } = await import("../../src/core/models/agent-model.js");
 
     expect(typeof isInternalModel("glm-5")).toBe("boolean");
   });
@@ -61,12 +61,12 @@ describe("Agent 集成测试 - ModelTiers 模块", () => {
   });
 
   it("应能导入 model-tiers 模块", async () => {
-    const modelTiers = await import("../../src/core/model-tiers.js");
+    const modelTiers = await import("../../src/core/models/model-tiers.js");
     expect(modelTiers).toBeDefined();
   });
 
   it("getModelForTier 应返回各层级的默认模型", async () => {
-    const { getModelForTier } = await import("../../src/core/model-tiers.js");
+    const { getModelForTier } = await import("../../src/core/models/model-tiers.js");
 
     const proModel = getModelForTier("pro");
     const liteModel = getModelForTier("lite");
@@ -78,7 +78,7 @@ describe("Agent 集成测试 - ModelTiers 模块", () => {
   });
 
   it("resolveSubAgentModel 应正确解析子代理模型", async () => {
-    const { resolveSubAgentModel } = await import("../../src/core/model-tiers.js");
+    const { resolveSubAgentModel } = await import("../../src/core/models/model-tiers.js");
 
     const result = resolveSubAgentModel("explore");
     expect(result).toHaveProperty("tier");
@@ -92,12 +92,12 @@ describe("Agent 集成测试 - Prompt 模块", () => {
   });
 
   it("应能导入 prompt 模块", async () => {
-    const prompt = await import("../../src/core/prompt.js");
+    const prompt = await import("../../src/core/prompt/index.js");
     expect(prompt).toBeDefined();
   });
 
   it("buildSystemPrompt 应返回有效的系统提示词", async () => {
-    const { buildSystemPrompt } = await import("../../src/core/prompt.js");
+    const { buildSystemPrompt } = await import("../../src/core/prompt/index.js");
 
     const prompt = buildSystemPrompt();
     expect(prompt).toBeDefined();
@@ -106,7 +106,7 @@ describe("Agent 集成测试 - Prompt 模块", () => {
   });
 
   it("loadPlanModePrompt 应返回有效的计划模式提示词", async () => {
-    const { loadPlanModePrompt } = await import("../../src/core/prompt.js");
+    const { loadPlanModePrompt } = await import("../../src/core/prompt/index.js");
 
     const prompt = loadPlanModePrompt();
     expect(prompt).toBeDefined();
@@ -181,12 +181,12 @@ describe("Agent 集成测试 - 压缩模块", () => {
   });
 
   it("应能导入压缩模块", async () => {
-    const compress = await import("../../src/core/compress.js");
+    const compress = await import("../../src/core/runtime/compress.js");
     expect(compress).toBeDefined();
   });
 
   it("CompressionPipeline 应可实例化", async () => {
-    const { CompressionPipeline } = await import("../../src/core/compress.js");
+    const { CompressionPipeline } = await import("../../src/core/runtime/compress.js");
 
     const pipeline = new CompressionPipeline(100000, () => null);
     expect(pipeline).toBeDefined();

@@ -1,4 +1,4 @@
-import { taskStore, type TaskStep } from "../../core/task-store.js";
+import { taskStore, type TaskStep } from "../../core/runtime/task-store.js";
 
 interface TaskStepInput {
   title: string;

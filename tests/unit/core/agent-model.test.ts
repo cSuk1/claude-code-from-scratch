@@ -5,7 +5,7 @@ import {
   modelSupportsThinking,
   modelSupportsAdaptiveThinking,
   getMaxOutputTokens,
-} from "../../../src/core/agent-model.js";
+} from "../../../src/core/models/agent-model.js";
 
 describe("agent-model", () => {
   describe("getContextWindow", () => {

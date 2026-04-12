@@ -11,17 +11,17 @@ vi.mock("../../../src/tools/tools.js", () => ({
   isIdempotent: vi.fn().mockReturnValue(true),
 }));
 
-vi.mock("../../../src/core/model-tiers.js", () => ({
+vi.mock("../../../src/core/models/model-tiers.js", () => ({
   getModelForTier: vi.fn().mockReturnValue("glm-5"),
   resolveSubAgentModel: vi.fn().mockReturnValue({ tier: "pro", model: "glm-5", source: "default" }),
 }));
 
-vi.mock("../../../src/core/agent-model.js", () => ({
+vi.mock("../../../src/core/models/agent-model.js", () => ({
   getContextWindow: vi.fn().mockReturnValue(200000),
   isInternalModel: vi.fn().mockReturnValue(false),
 }));
 
-vi.mock("../../../src/core/prompt.js", () => ({
+vi.mock("../../../src/core/prompt/index.js", () => ({
   buildSystemPrompt: vi.fn().mockReturnValue("System prompt"),
   loadPlanModePrompt: vi.fn().mockReturnValue("Plan mode prompt"),
 }));
@@ -58,6 +58,7 @@ vi.mock("../../../src/extensions/subagent.js", () => ({
     GENERAL: "general",
     COMPACT: "compact",
   },
+  buildAgentDescriptions: vi.fn().mockReturnValue(""),
 }));
 
 vi.mock("../../../src/backend/index.js", () => {
@@ -78,7 +79,7 @@ vi.mock("../../../src/backend/index.js", () => {
   };
 });
 
-vi.mock("../../../src/core/compress.js", () => ({
+vi.mock("../../../src/core/runtime/compress.js", () => ({
   CompressionPipeline: class {
     runAnthropic = vi.fn();
     runOpenAI = vi.fn();
@@ -86,7 +87,7 @@ vi.mock("../../../src/core/compress.js", () => ({
   },
 }));
 
-vi.mock("../../../src/core/agent-strategies.js", () => ({
+vi.mock("../../../src/core/execution/strategies.js", () => ({
   toolStrategies: {
     anthropic: { budget: vi.fn(), snip: vi.fn(), microcompact: vi.fn() },
     openai: { budget: vi.fn(), snip: vi.fn(), microcompact: vi.fn() },

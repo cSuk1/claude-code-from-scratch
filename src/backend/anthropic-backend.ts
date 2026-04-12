@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ToolDef } from "../tools/tools.js";
-import { getMaxOutputTokens, modelSupportsThinking, modelSupportsAdaptiveThinking } from "../core/agent-model.js";
-import { withRetry } from "../core/agent-retry.js";
-import type { CompressionPipeline } from "../core/compress.js";
+import { getMaxOutputTokens, modelSupportsThinking, modelSupportsAdaptiveThinking } from "../core/models/agent-model.js";
+import { withRetry } from "./retry.js";
+import type { CompressionPipeline } from "../core/runtime/compress.js";
 import type { MessageHandler, StreamResult, BackendConfig, ToolResultEntry, StreamChunk } from "./backend-types.js";
 
 export class AnthropicBackend implements MessageHandler {
